@@ -1,5 +1,5 @@
 const state = {
-  apiUrl: localStorage.getItem('sd_api_url') || '',
+  apiUrl: localStorage.getItem('https://script.google.com/macros/s/AKfycbyxM4N--Ee9shmW6VmDtLl46aJGrabSBxPhhZMlV1OXEDTMUeyuSavuBu93VoZNnfHVPQ/exec') || '',
   session: null,
   bootstrap: null,
   products: [],
