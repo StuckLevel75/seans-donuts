@@ -1,29 +1,71 @@
-alert("app.js is loading");
+const API_URL = "https://script.google.com/macros/s/AKfycbyxM4N--Ee9shmW6VmDtLl46aJGrabSBxPhhZMlV1OXEDTMUeyuSavuBu93VoZNnfHVPQ/exec";
 
 document.addEventListener("DOMContentLoaded", () => {
-  const loginBtn = document.getElementById("loginBtn");
-  const demoFillBtn = document.getElementById("demoFillBtn");
-  const saveApiUrlBtn = document.getElementById("saveApiUrlBtn");
+const loginBtn = document.getElementById("loginBtn");
+const demoBtn = document.getElementById("demoFillBtn");
+const saveBtn = document.getElementById("saveApiUrlBtn");
 
-  if (demoFillBtn) {
-    demoFillBtn.addEventListener("click", () => {
-      alert("Demo button works");
-      const loginValue = document.getElementById("loginValue");
-      const loginPin = document.getElementById("loginPin");
-      if (loginValue) loginValue.value = "owner";
-      if (loginPin) loginPin.value = "1234";
-    });
-  }
+const loginMsg = document.getElementById("loginMsg");
 
-  if (loginBtn) {
-    loginBtn.addEventListener("click", () => {
-      alert("Login button works");
-    });
-  }
+function showMessage(msg, type = "info") {
+if (!loginMsg) return;
+loginMsg.textContent = msg;
+loginMsg.className = `message show ${type}`;
+}
 
-  if (saveApiUrlBtn) {
-    saveApiUrlBtn.addEventListener("click", () => {
-      alert("Save URL button works");
+if (demoBtn) {
+demoBtn.addEventListener("click", () => {
+document.getElementById("loginValue").value = "owner";
+document.getElementById("loginPin").value = "1234";
+});
+}
+
+if (saveBtn) {
+saveBtn.addEventListener("click", () => {
+const val = document.getElementById("apiUrl").value.trim();
+localStorage.setItem("sd_api_url", val);
+showMessage("API URL saved", "success");
+});
+}
+
+if (loginBtn) {
+loginBtn.addEventListener("click", async () => {
+const email = document.getElementById("loginValue").value.trim();
+const pin = document.getElementById("loginPin").value.trim();
+
+```
+  showMessage("Signing in...", "info");
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "login",
+        payload: { email, pin }
+      })
     });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      showMessage(data.message || "Login failed", "error");
+      return;
+    }
+
+    showMessage("Login success!", "success");
+
+    document.getElementById("loginView").classList.add("hidden");
+    document.getElementById("portalView").classList.remove("hidden");
+
+    document.getElementById("sessionStatus").textContent = "Signed in";
+    document.getElementById("userBadge").textContent =
+      data.employee.name + " · " + data.employee.role;
+
+  } catch (err) {
+    showMessage("Failed to connect to backend", "error");
   }
+});
+```
+
+}
 });
