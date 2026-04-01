@@ -33,11 +33,14 @@ window.onload = function () {
       var val = apiUrlInput ? apiUrlInput.value.trim() : "";
       localStorage.setItem("sd_api_url", val);
       showMessage("API URL saved.", "success");
+      alert("Save button clicked");
     };
   }
 
   if (loginBtn) {
     loginBtn.onclick = async function () {
+      alert("Login button clicked");
+
       var email = loginValue ? loginValue.value.trim() : "";
       var pin = loginPin ? loginPin.value.trim() : "";
       var url = (apiUrlInput ? apiUrlInput.value.trim() : "") || API_URL;
@@ -45,6 +48,8 @@ window.onload = function () {
       showMessage("Signing in...", "info");
 
       try {
+        alert("About to fetch");
+
         var res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -54,7 +59,10 @@ window.onload = function () {
           })
         });
 
+        alert("Fetch returned: " + res.status);
+
         var data = await res.json();
+        alert("JSON parsed");
 
         if (!data.ok) {
           showMessage(data.message || "Login failed.", "error");
@@ -77,6 +85,7 @@ window.onload = function () {
         if (sessionRole) sessionRole.textContent = data.employee.role || "Employee";
         if (userBadge) userBadge.textContent = data.employee.name + " · " + data.employee.role;
       } catch (err) {
+        alert("Catch hit: " + err.message);
         showMessage("Failed to connect to backend.", "error");
       }
     };
