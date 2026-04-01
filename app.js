@@ -17,6 +17,69 @@ window.onload = function () {
     loginMsg.className = text ? "message show " + (type || "info") : "message";
   }
 
+  function hideAllSections() {
+    var ids = [
+      "dashboardSection",
+      "posSection",
+      "ordersSection",
+      "rewardsSection",
+      "raffleSection",
+      "payrollSection",
+      "settingsSection"
+    ];
+
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) el.classList.add("hidden");
+    }
+  }
+
+  function showSection(sectionId) {
+    hideAllSections();
+    var el = document.getElementById(sectionId);
+    if (el) el.classList.remove("hidden");
+  }
+
+  function renderNav(data) {
+    var navTabs = document.getElementById("navTabs");
+    if (!navTabs) return;
+
+    var tabs = [
+      { label: "Dashboard", section: "dashboardSection" },
+      { label: "POS", section: "posSection" },
+      { label: "Orders", section: "ordersSection" },
+      { label: "Rewards", section: "rewardsSection" },
+      { label: "Raffle", section: "raffleSection" },
+      { label: "Payroll", section: "payrollSection" }
+    ];
+
+    var isOwner = data && data.permissions && (data.permissions.isOwner || data.permissions.isAdmin);
+    if (isOwner) {
+      tabs.push({ label: "Settings", section: "settingsSection" });
+    }
+
+    navTabs.innerHTML = "";
+
+    for (var i = 0; i < tabs.length; i++) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "nav-btn" + (i === 0 ? " active" : "");
+      btn.textContent = tabs[i].label;
+      btn.setAttribute("data-section", tabs[i].section);
+
+      btn.onclick = function () {
+        var allBtns = navTabs.querySelectorAll(".nav-btn");
+        for (var j = 0; j < allBtns.length; j++) {
+          allBtns[j].classList.remove("active");
+        }
+        this.classList.add("active");
+        showSection(this.getAttribute("data-section"));
+      };
+
+      navTabs.appendChild(btn);
+    }
+  }
+
   function showPortal(data) {
     var loginView = document.getElementById("loginView");
     var portalView = document.getElementById("portalView");
@@ -34,86 +97,16 @@ window.onload = function () {
     if (logoutBtn) logoutBtn.classList.remove("hidden");
 
     if (sessionStatus) sessionStatus.textContent = "Signed in";
-    if (sessionRole) sessionRole.textContent = data.employee.role || "Employee";
-    if (userBadge) userBadge.textContent = (data.employee.name || "Portal User") + " · " + (data.employee.role || "Employee");
-    if (welcomeTitle) welcomeTitle.textContent = "Welcome, " + (data.employee.name || "Employee");
-    if (announcementBar) announcementBar.textContent = (data.portalPrefs && data.portalPrefs.announcement) || "Welcome to Sean's Donuts Portal";
-    if (bankIdText) bankIdText.textContent = (data.portalPrefs && data.portalPrefs.bankId) || "24596194";
-    if (settingsAnnouncement) settingsAnnouncement.value = (data.portalPrefs && data.portalPrefs.announcement) || "";
-    if (settingsBankId) settingsBankId.value = (data.portalPrefs && data.portalPrefs.bankId) || "24596194";
+    if (sessionRole) sessionRole.textContent = data.employee && data.employee.role ? data.employee.role : "Employee";
+    if (userBadge) userBadge.textContent = (data.employee && data.employee.name ? data.employee.name : "Portal User") + " · " + (data.employee && data.employee.role ? data.employee.role : "Employee");
+    if (welcomeTitle) welcomeTitle.textContent = "Welcome, " + (data.employee && data.employee.name ? data.employee.name : "Employee");
+    if (announcementBar) announcementBar.textContent = data.portalPrefs && data.portalPrefs.announcement ? data.portalPrefs.announcement : "Welcome to Sean's Donuts Portal";
+    if (bankIdText) bankIdText.textContent = data.portalPrefs && data.portalPrefs.bankId ? data.portalPrefs.bankId : "24596194";
+    if (settingsAnnouncement) settingsAnnouncement.value = data.portalPrefs && data.portalPrefs.announcement ? data.portalPrefs.announcement : "";
+    if (settingsBankId) settingsBankId.value = data.portalPrefs && data.portalPrefs.bankId ? data.portalPrefs.bankId : "24596194";
 
-    showDashboardOnly();
     renderNav(data);
-  }
-
-  function showDashboardOnly() {
-    var sections = [
-      "dashboardSection",
-      "posSection",
-      "ordersSection",
-      "rewardsSection",
-      "raffleSection",
-      "payrollSection",
-      "settingsSection"
-    ];
-
-    for (var i = 0; i < sections.length; i++) {
-      var el = document.getElementById(sections[i]);
-      if (!el) continue;
-      if (sections[i] === "dashboardSection") el.classList.remove("hidden");
-      else el.classList.add("hidden");
-    }
-  }
-
-  function renderNav(data) {
-    var navTabs = document.getElementById("navTabs");
-    if (!navTabs) return;
-
-    var tabs = [
-      { key: "dashboard", label: "Dashboard", section: "dashboardSection" },
-      { key: "pos", label: "POS", section: "posSection" },
-      { key: "orders", label: "Orders", section: "ordersSection" },
-      { key: "rewards", label: "Rewards", section: "rewardsSection" },
-      { key: "raffle", label: "Raffle", section: "raffleSection" },
-      { key: "payroll", label: "Payroll", section: "payrollSection" }
-    ];
-
-    var isOwner = data && data.permissions && (data.permissions.isOwner || data.permissions.isAdmin);
-    if (isOwner) {
-      tabs.push({ key: "settings", label: "Settings", section: "settingsSection" });
-    }
-
-    navTabs.innerHTML = "";
-    for (var i = 0; i < tabs.length; i++) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "nav-btn" + (i === 0 ? " active" : "");
-      btn.textContent = tabs[i].label;
-      btn.setAttribute("data-section", tabs[i].section);
-      btn.onclick = function () {
-        var allBtns = navTabs.querySelectorAll(".nav-btn");
-        for (var j = 0; j < allBtns.length; j++) allBtns[j].classList.remove("active");
-        this.classList.add("active");
-
-        var sections = [
-          "dashboardSection",
-          "posSection",
-          "ordersSection",
-          "rewardsSection",
-          "raffleSection",
-          "payrollSection",
-          "settingsSection"
-        ];
-
-        for (var k = 0; k < sections.length; k++) {
-          var el = document.getElementById(sections[k]);
-          if (!el) continue;
-          if (sections[k] === this.getAttribute("data-section")) el.classList.remove("hidden");
-          else el.classList.add("hidden");
-        }
-      };
-      navTabs.appendChild(btn);
-    }
+    showSection("dashboardSection");
   }
 
   if (apiUrlInput) {
@@ -140,7 +133,7 @@ window.onload = function () {
     loginBtn.onclick = async function () {
       var email = loginValue ? loginValue.value.trim() : "";
       var pin = loginPin ? loginPin.value.trim() : "";
-      var url = (apiUrlInput ? apiUrlInput.value.trim() : "") || API_URL;
+      var url = apiUrlInput && apiUrlInput.value.trim() ? apiUrlInput.value.trim() : API_URL;
 
       showMessage("Signing in...", "info");
 
@@ -186,6 +179,7 @@ window.onload = function () {
       if (sessionRole) sessionRole.textContent = "—";
       if (userBadge) userBadge.textContent = "Portal User";
 
+      hideAllSections();
       showMessage("");
     };
   }
