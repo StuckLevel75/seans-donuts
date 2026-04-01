@@ -1,253 +1,329 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sean's Donuts Portal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">🍩</div>
-        <div>
-          <h1 id="portalName">Sean's Donuts</h1>
-          <p id="portalSubtitle">GitHub Portal</p>
-        </div>
+    <header class="topbar">
+      <div>
+        <h1 id="portalName">Sean's Donuts</h1>
+        <p id="portalSubtitle">Employee Portal</p>
       </div>
 
-      <div class="backend-box card">
-        <label for="apiUrl">Apps Script Web App URL</label>
-        <input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-        <button id="saveApiUrlBtn" class="secondary-btn">Save URL</button>
-        <p class="muted">This GitHub site talks to your Google Sheets through your Apps Script backend.</p>
+      <div class="topbar-right">
+        <div class="status-chip">
+          <span class="dot"></span>
+          <span id="sessionStatus">Signed out</span>
+        </div>
+        <div class="user-chip">
+          <span id="userBadge">Portal User</span>
+        </div>
+        <button id="logoutBtn" class="btn btn-danger hidden" type="button">Logout</button>
       </div>
+    </header>
 
-      <nav id="navTabs" class="nav-tabs"></nav>
-
-      <div class="card session-box">
-        <div class="session-row">
-          <span class="muted">Status</span>
-          <strong id="sessionStatus">Signed out</strong>
-        </div>
-        <div class="session-row">
-          <span class="muted">Role</span>
-          <strong id="sessionRole">—</strong>
-        </div>
-        <button id="logoutBtn" class="danger-btn hidden">Log Out</button>
+    <section id="announcementWrap" class="announcement-wrap">
+      <div class="announcement-card">
+        <strong>Announcement:</strong>
+        <span id="announcementBar">Welcome to Sean's Donuts Portal</span>
       </div>
-    </aside>
+    </section>
 
-    <main class="main">
-      <section id="loginView" class="view active-view">
-        <div class="hero card">
-          <div>
-            <span class="eyebrow">GitHub + Apps Script</span>
-            <h2>Sean's Donuts Portal</h2>
-            <p class="lead">This is the GitHub-hosted frontend version of your portal. It keeps your Google Sheets as the database and moves the UI to GitHub Pages.</p>
-          </div>
-          <div class="hero-actions">
-            <button id="demoFillBtn">Fill Demo Login</button>
-          </div>
+    <main class="main-layout">
+      <aside class="sidebar">
+        <div class="sidebar-card">
+          <h3>Connection</h3>
+          <label for="apiUrl">Apps Script Web App URL</label>
+          <input id="apiUrl" type="text" placeholder="Paste your Apps Script Web App URL" />
+          <button id="saveApiUrlBtn" class="btn btn-primary" type="button">Save URL</button>
         </div>
 
-        <div class="login-grid">
-          <div class="card">
-            <h3>Employee Login</h3>
-            <label for="loginValue">Username or Email</label>
-            <input id="loginValue" type="text" placeholder="username or email">
-
-            <label for="loginPin">PIN / Password</label>
-            <input id="loginPin" type="password" placeholder="pin or password">
-
-            <button id="loginBtn">Sign In</button>
-            <div id="loginMsg" class="message"></div>
-          </div>
-
-          <div class="card">
-            <h3>What this already supports</h3>
-            <ul class="clean-list">
-              <li>Dashboard stats</li>
-              <li>Product-based POS</li>
-              <li>Recent orders</li>
-              <li>Rewards lookup</li>
-              <li>Raffle overview</li>
-              <li>Payroll summary</li>
-              <li>Owner settings</li>
-            </ul>
-            <p class="muted small">All calls go through <code>fetch()</code> to your Apps Script web app instead of <code>google.script.run</code>.</p>
-          </div>
+        <div class="sidebar-card">
+          <h3>Quick Info</h3>
+          <p><strong>Role:</strong> <span id="sessionRole">—</span></p>
+          <p><strong>Bank ID:</strong> <span id="bankIdText">24596194</span></p>
         </div>
-      </section>
 
-      <section id="portalView" class="view hidden">
-        <header class="topbar card">
-          <div>
-            <p class="eyebrow">Employee Portal</p>
-            <h2 id="welcomeTitle">Welcome</h2>
-            <p id="announcementBar" class="announcement">Welcome to Sean's Donuts Portal</p>
-          </div>
-          <div class="topbar-stats">
-            <div class="mini-stat">
-              <span>Bank ID</span>
-              <strong id="bankIdText">24596194</strong>
-            </div>
-            <div class="mini-stat">
-              <span>User</span>
-              <strong id="userBadge">Portal User</strong>
-            </div>
-          </div>
-        </header>
+        <div class="sidebar-card">
+          <h3>Navigation</h3>
+          <div id="navTabs" class="nav-tabs"></div>
+        </div>
+      </aside>
 
-        <section id="dashboardSection" class="page-section active-section">
-          <div class="stats-grid">
-            <div class="stat-card card"><span>Total Orders</span><strong id="statOrders">0</strong></div>
-            <div class="stat-card card"><span>Total Sales</span><strong id="statSales">$0.00</strong></div>
-            <div class="stat-card card"><span>Active Employees</span><strong id="statEmployees">0</strong></div>
-            <div class="stat-card card"><span>Raffle Entries</span><strong id="statRaffle">0</strong></div>
+      <section class="content-area">
+        <section id="loginView" class="panel">
+          <div class="panel-header">
+            <h2>Login</h2>
+            <p>Sign in with your username/email and PIN</p>
           </div>
 
-          <div class="two-col">
-            <div class="card">
-              <h3>Announcements</h3>
-              <div id="announcementsList" class="stack-list"></div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="loginValue">Username or Email</label>
+              <input id="loginValue" type="text" placeholder="owner" />
             </div>
-            <div class="card">
-              <h3>Quick Actions</h3>
-              <div class="quick-actions">
-                <button data-tab-target="pos">Open POS</button>
-                <button data-tab-target="orders" class="secondary-btn">View Orders</button>
-                <button data-tab-target="rewards" class="secondary-btn">Rewards</button>
+
+            <div class="field">
+              <label for="loginPin">PIN</label>
+              <input id="loginPin" type="password" placeholder="1234" />
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
+            <button id="demoFillBtn" class="btn btn-secondary" type="button">Fill Demo Login</button>
+          </div>
+
+          <div id="loginMsg" class="message"></div>
+        </section>
+
+        <section id="portalView" class="hidden">
+          <section id="dashboardSection" class="panel">
+            <div class="panel-header">
+              <h2 id="welcomeTitle">Welcome, Employee</h2>
+              <p>Portal overview</p>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-label">Orders</span>
+                <span id="statOrders" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Sales</span>
+                <span id="statSales" class="stat-value">$0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Employees</span>
+                <span id="statEmployees" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Raffle Entries</span>
+                <span id="statRaffle" class="stat-value">0</span>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section id="posSection" class="page-section hidden">
-          <div class="two-col">
-            <div class="card">
-              <h3>Point of Sale</h3>
-              <label for="customerName">Customer Name</label>
-              <input id="customerName" type="text" placeholder="Customer name">
-
-              <label for="phoneNumber">Phone Number</label>
-              <input id="phoneNumber" type="text" placeholder="Phone number">
-
-              <label>Products</label>
-              <div id="productGrid" class="product-grid"></div>
-            </div>
-
-            <div class="card sticky-card">
-              <h3>Order Summary</h3>
-              <div id="cartList" class="stack-list"></div>
-
-              <div class="totals">
-                <div><span>Subtotal</span><strong id="subtotalText">$0.00</strong></div>
-                <div><span>Discount</span><strong id="discountText">$0.00</strong></div>
-                <div><span>Tip</span><strong id="tipText">$0.00</strong></div>
-                <div class="grand"><span>Total</span><strong id="totalText">$0.00</strong></div>
+            <div class="split-grid">
+              <div class="card-block">
+                <h3>Announcements</h3>
+                <div id="announcementsList" class="list-wrap">
+                  <div class="list-item"><p>No active announcements.</p></div>
+                </div>
               </div>
 
-              <label for="discountInput">Discount</label>
-              <input id="discountInput" type="number" min="0" step="0.01" value="0">
-
-              <label for="tipInput">Tip</label>
-              <input id="tipInput" type="number" min="0" step="0.01" value="0">
-
-              <label for="paymentMethod">Payment Method</label>
-              <select id="paymentMethod"></select>
-
-              <label for="notes">Notes</label>
-              <textarea id="notes" rows="4" placeholder="Order notes"></textarea>
-
-              <button id="submitOrderBtn">Submit Order</button>
-              <div id="orderMsg" class="message"></div>
-            </div>
-          </div>
-        </section>
-
-        <section id="ordersSection" class="page-section hidden">
-          <div class="card">
-            <div class="section-header">
-              <h3>Orders</h3>
-              <div class="inline-form">
-                <input id="orderSearchInput" type="text" placeholder="Search order number, customer, employee">
-                <button id="searchOrdersBtn">Search</button>
+              <div class="card-block">
+                <h3>Helpful Info</h3>
+                <div class="info-list">
+                  <p><strong>Portal:</strong> <span id="dashboardPortalName">Sean's Donuts</span></p>
+                  <p><strong>Subtitle:</strong> <span id="dashboardPortalSubtitle">Employee Portal</span></p>
+                  <p><strong>Bank ID:</strong> <span id="dashboardBankId">24596194</span></p>
+                </div>
               </div>
             </div>
-            <div id="ordersList" class="stack-list"></div>
-          </div>
-        </section>
+          </section>
 
-        <section id="rewardsSection" class="page-section hidden">
-          <div class="two-col">
-            <div class="card">
-              <h3>Rewards Lookup</h3>
-              <label for="rewardCustomerName">Customer Name</label>
-              <input id="rewardCustomerName" type="text" placeholder="Customer name">
-              <button id="lookupRewardsBtn">Lookup Rewards</button>
-              <div id="rewardsMsg" class="message"></div>
+          <section id="posSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>POS</h2>
+              <p>Create a new order</p>
             </div>
-            <div class="card">
-              <h3>Rewards Summary</h3>
-              <div class="stack-list" id="rewardSummary">
-                <div class="list-item"><span>Visits</span><strong id="rewardVisits">0</strong></div>
-                <div class="list-item"><span>Visit Progress</span><strong id="rewardProgress">0 / 10</strong></div>
-                <div class="list-item"><span>Rewards Available</span><strong id="rewardAvailable">0</strong></div>
-                <div class="list-item"><span>Redeemed</span><strong id="rewardRedeemed">0</strong></div>
-                <div class="list-item"><span>Last Visit</span><strong id="rewardLastVisit">—</strong></div>
-                <div class="list-item"><span>Last Order</span><strong id="rewardLastOrder">—</strong></div>
+
+            <div class="pos-layout">
+              <div class="card-block">
+                <h3>Customer</h3>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="customerName">Customer Name</label>
+                    <input id="customerName" type="text" placeholder="Customer name" />
+                  </div>
+
+                  <div class="field">
+                    <label for="phoneNumber">Phone Number</label>
+                    <input id="phoneNumber" type="text" placeholder="Phone number" />
+                  </div>
+                </div>
+
+                <h3>Products</h3>
+                <div id="productGrid" class="product-grid">
+                  <div class="list-item"><p>No products yet.</p></div>
+                </div>
+              </div>
+
+              <div class="card-block">
+                <h3>Cart</h3>
+                <div id="cartList" class="list-wrap">
+                  <div class="list-item"><p>Empty cart</p></div>
+                </div>
+
+                <div class="form-grid compact">
+                  <div class="field">
+                    <label for="discountInput">Discount</label>
+                    <input id="discountInput" type="number" min="0" step="0.01" value="0" />
+                  </div>
+
+                  <div class="field">
+                    <label for="tipInput">Tip</label>
+                    <input id="tipInput" type="number" min="0" step="0.01" value="0" />
+                  </div>
+
+                  <div class="field">
+                    <label for="paymentMethod">Payment Method</label>
+                    <select id="paymentMethod"></select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="notes">Notes</label>
+                  <textarea id="notes" rows="4" placeholder="Notes"></textarea>
+                </div>
+
+                <div class="totals-box">
+                  <div><span>Subtotal</span><strong id="subtotalText">$0.00</strong></div>
+                  <div><span>Discount</span><strong id="discountText">$0.00</strong></div>
+                  <div><span>Tip</span><strong id="tipText">$0.00</strong></div>
+                  <div class="grand-total"><span>Total</span><strong id="totalText">$0.00</strong></div>
+                </div>
+
+                <div class="button-row">
+                  <button id="submitOrderBtn" class="btn btn-primary" type="button">Submit Order</button>
+                </div>
+
+                <div id="orderMsg" class="message"></div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section id="raffleSection" class="page-section hidden">
-          <div class="card">
-            <h3>Raffle Overview</h3>
-            <div id="raffleList" class="stack-list"></div>
-          </div>
-        </section>
+          <section id="ordersSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>Orders</h2>
+              <p>Search recent orders</p>
+            </div>
 
-        <section id="payrollSection" class="page-section hidden">
-          <div class="card">
-            <div class="section-header">
-              <h3>Payroll</h3>
-              <div class="inline-form">
-                <input id="payrollStartDate" type="date">
-                <input id="payrollEndDate" type="date">
-                <button id="loadPayrollBtn">Load</button>
+            <div class="search-row">
+              <input id="orderSearchInput" type="text" placeholder="Search orders..." />
+              <button id="searchOrdersBtn" class="btn btn-primary" type="button">Search</button>
+            </div>
+
+            <div id="ordersList" class="list-wrap">
+              <div class="list-item"><p>No orders loaded.</p></div>
+            </div>
+          </section>
+
+          <section id="rewardsSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>Rewards</h2>
+              <p>Lookup customer rewards</p>
+            </div>
+
+            <div class="search-row">
+              <input id="rewardCustomerName" type="text" placeholder="Customer name" />
+              <button id="lookupRewardsBtn" class="btn btn-primary" type="button">Lookup</button>
+            </div>
+
+            <div class="stats-grid rewards-grid">
+              <div class="stat-card">
+                <span class="stat-label">Visits</span>
+                <span id="rewardVisits" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Progress</span>
+                <span id="rewardProgress" class="stat-value">0 / 10</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Available</span>
+                <span id="rewardAvailable" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Redeemed</span>
+                <span id="rewardRedeemed" class="stat-value">0</span>
               </div>
             </div>
-            <div id="payrollList" class="stack-list"></div>
-          </div>
-        </section>
 
-        <section id="settingsSection" class="page-section hidden">
-          <div class="card">
-            <h3>Owner Settings</h3>
-            <div class="two-col settings-grid">
-              <div>
+            <div class="split-grid">
+              <div class="card-block">
+                <h3>Last Visit</h3>
+                <p id="rewardLastVisit">—</p>
+              </div>
+              <div class="card-block">
+                <h3>Last Order</h3>
+                <p id="rewardLastOrder">—</p>
+              </div>
+            </div>
+
+            <div id="rewardsMsg" class="message"></div>
+          </section>
+
+          <section id="raffleSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>Raffle</h2>
+              <p>Recent raffle entries</p>
+            </div>
+
+            <div id="raffleList" class="list-wrap">
+              <div class="list-item"><p>No raffle entries loaded.</p></div>
+            </div>
+          </section>
+
+          <section id="payrollSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>Payroll</h2>
+              <p>View payroll rows</p>
+            </div>
+
+            <div class="form-grid compact">
+              <div class="field">
+                <label for="payrollStartDate">Start Date</label>
+                <input id="payrollStartDate" type="date" />
+              </div>
+              <div class="field">
+                <label for="payrollEndDate">End Date</label>
+                <input id="payrollEndDate" type="date" />
+              </div>
+              <div class="field align-end">
+                <button id="loadPayrollBtn" class="btn btn-primary" type="button">Load Payroll</button>
+              </div>
+            </div>
+
+            <div id="payrollList" class="list-wrap">
+              <div class="list-item"><p>No payroll rows loaded.</p></div>
+            </div>
+          </section>
+
+          <section id="settingsSection" class="panel hidden">
+            <div class="panel-header">
+              <h2>Settings</h2>
+              <p>Owner/Admin settings</p>
+            </div>
+
+            <div class="form-grid">
+              <div class="field">
                 <label for="settingsAnnouncement">Announcement</label>
-                <textarea id="settingsAnnouncement" rows="4"></textarea>
+                <input id="settingsAnnouncement" type="text" placeholder="Announcement" />
               </div>
-              <div>
-                <label for="settingsBankId">Bank ID</label>
-                <input id="settingsBankId" type="text">
 
-                <label for="settingsTheme">Theme</label>
+              <div class="field">
+                <label for="settingsBankId">Bank ID</label>
+                <input id="settingsBankId" type="text" placeholder="24596194" />
+              </div>
+
+              <div class="field">
+                <label for="settingsTheme">Portal Theme</label>
                 <select id="settingsTheme">
-                  <option value="orange">Orange</option>
+                  <option value="classic">Classic</option>
                 </select>
               </div>
             </div>
-            <button id="saveSettingsBtn">Save Settings</button>
+
+            <div class="button-row">
+              <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save Settings</button>
+            </div>
+
             <div id="settingsMsg" class="message"></div>
-          </div>
+          </section>
         </section>
       </section>
     </main>
