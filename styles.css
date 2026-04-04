@@ -2,6 +2,7 @@
   --bg: #fdf4ea;
   --bg-soft: #fff7ef;
   --card: #ffffff;
+  --card-2: #fffaf5;
   --text: #4a2e22;
   --muted: #8a6a5a;
   --border: #edc9a5;
@@ -16,6 +17,7 @@
   --info-bg: #fff3e6;
   --info-text: #7d4e20;
   --shadow: rgba(91, 58, 41, 0.12);
+  --shadow-strong: rgba(91, 58, 41, 0.16);
 }
 
 * { box-sizing: border-box; }
@@ -37,6 +39,7 @@ button, input, textarea, select {
   display: none !important;
 }
 
+/* LOGIN */
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -47,22 +50,22 @@ button, input, textarea, select {
 .login-card-v1 {
   width: 100%;
   max-width: 480px;
-  background: rgba(255,255,255,0.88);
+  background: rgba(255,255,255,0.9);
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 32px 28px 28px;
-  box-shadow: 0 16px 40px var(--shadow);
+  border-radius: 28px;
+  padding: 34px 28px 28px;
+  box-shadow: 0 18px 44px var(--shadow-strong);
   text-align: center;
 }
 
 .login-logo-v1 {
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   margin: 0 auto 18px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 28px;
+  font-size: 30px;
   background: linear-gradient(135deg, #8a5a44, #6b4330);
   color: #fff;
   box-shadow: 0 10px 25px rgba(108, 67, 48, 0.22);
@@ -113,6 +116,7 @@ button, input, textarea, select {
   box-shadow: 0 12px 24px rgba(242, 140, 24, 0.22);
 }
 
+/* APP */
 .app-shell {
   min-height: 100vh;
 }
@@ -189,9 +193,10 @@ button, input, textarea, select {
 .announcement-card {
   background: #fff3e6;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 12px 16px;
   color: var(--secondary);
+  box-shadow: 0 8px 18px rgba(91, 58, 41, 0.05);
 }
 
 .main-layout {
@@ -212,36 +217,65 @@ button, input, textarea, select {
 .card-block {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: 24px;
   padding: 20px;
   box-shadow: 0 10px 28px var(--shadow);
 }
 
 .sidebar-card h3,
 .card-block h3 {
-  margin: 0 0 14px;
+  margin: 0;
 }
 
 .content-area {
   min-width: 0;
 }
 
-.panel {
-  margin-bottom: 20px;
+.page-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,250,245,0.96));
 }
 
-.panel-header {
-  margin-bottom: 16px;
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff1dd;
+  color: var(--secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .panel-header h2 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.85rem;
 }
 
 .panel-header p {
   margin: 6px 0 0;
   color: var(--muted);
+}
+
+.section-card {
+  background: var(--card-2);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-gap {
+  margin-top: 18px;
 }
 
 label {
@@ -337,6 +371,12 @@ select:focus {
   padding: 12px 14px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.nav-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(91, 58, 41, 0.08);
 }
 
 .nav-btn.active {
@@ -355,8 +395,9 @@ select:focus {
 .stat-card {
   background: #fffaf5;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
 }
 
 .stat-label {
@@ -366,7 +407,7 @@ select:focus {
 }
 
 .stat-value {
-  font-size: 1.7rem;
+  font-size: 1.75rem;
   font-weight: 800;
 }
 
@@ -383,7 +424,7 @@ select:focus {
 
 .list-item {
   border: 1px solid var(--border);
-  background: #fffaf5;
+  background: #fff;
   border-radius: 16px;
   padding: 14px;
 }
@@ -417,7 +458,8 @@ select:focus {
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 14px;
-  background: #fffaf5;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(91, 58, 41, 0.05);
 }
 
 .product-card h4 {
@@ -467,7 +509,7 @@ select:focus {
   justify-content: space-between;
   padding: 12px 14px;
   border-radius: 14px;
-  background: #fffaf5;
+  background: #fff;
   border: 1px solid var(--border);
 }
 
