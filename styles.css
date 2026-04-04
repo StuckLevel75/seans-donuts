@@ -37,7 +37,6 @@ button, input, textarea, select {
   display: none !important;
 }
 
-/* LOGIN PAGE */
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -114,7 +113,6 @@ button, input, textarea, select {
   box-shadow: 0 12px 24px rgba(242, 140, 24, 0.22);
 }
 
-/* APP LAYOUT AFTER LOGIN */
 .app-shell {
   min-height: 100vh;
 }
