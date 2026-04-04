@@ -288,11 +288,13 @@ window.onload = function () {
 
     var discount = Number((el("discountInput") && el("discountInput").value) || 0);
     var tip = Number((el("tipInput") && el("tipInput").value) || 0);
-    var total = Math.max(0, subtotal - discount + tip);
+    var mileage = Number((el("mileageInput") && el("mileageInput").value) || 0);
+    var total = Math.max(0, subtotal - discount + tip + mileage);
 
     safeText("subtotalText", money(subtotal));
     safeText("discountText", money(discount));
     safeText("tipText", money(tip));
+    safeText("mileageText", money(mileage));
     safeText("totalText", money(total));
   }
 
@@ -415,6 +417,7 @@ window.onload = function () {
         items: items,
         discount: Number((el("discountInput").value || 0)),
         tip: Number((el("tipInput").value || 0)),
+        mileage: Number((el("mileageInput").value || 0)),
         paymentMethod: (el("paymentMethod").value || "").trim(),
         notes: (el("notes").value || "").trim()
       });
@@ -432,6 +435,7 @@ window.onload = function () {
       safeValue("phoneNumber", "");
       safeValue("discountInput", "0");
       safeValue("tipInput", "0");
+      safeValue("mileageInput", "0");
       safeValue("notes", "");
 
       showMessage("orderMsg", result.message || "Order submitted.", "success");
@@ -636,6 +640,7 @@ window.onload = function () {
 
     if (el("discountInput")) el("discountInput").oninput = renderCart;
     if (el("tipInput")) el("tipInput").oninput = renderCart;
+    if (el("mileageInput")) el("mileageInput").oninput = renderCart;
   }
 
   function init() {
