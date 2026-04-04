@@ -9,9 +9,12 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div>
-        <h1 id="portalName">Sean's Donuts</h1>
-        <p id="portalSubtitle">Employee Portal</p>
+      <div class="brand-wrap">
+        <div class="brand-mark">🍩</div>
+        <div>
+          <h1 id="portalName">Sean's Donuts</h1>
+          <p id="portalSubtitle">Employee Portal</p>
+        </div>
       </div>
 
       <div class="topbar-right">
@@ -55,30 +58,43 @@
       </aside>
 
       <section class="content-area">
-        <section id="loginView" class="panel">
-          <div class="panel-header">
-            <h2>Login</h2>
-            <p>Sign in with your username/email and PIN</p>
+        <section id="loginView" class="login-screen">
+          <div class="login-hero">
+            <div class="login-hero-badge">Sean's Donuts Staff Access</div>
+            <h2>Welcome back</h2>
+            <p>
+              Sign in to manage orders, rewards, raffle entries, payroll, and store settings.
+            </p>
           </div>
 
-          <div class="form-grid">
-            <div class="field">
-              <label for="loginValue">Username or Email</label>
-              <input id="loginValue" type="text" placeholder="owner" />
+          <div class="login-card">
+            <div class="login-card-top">
+              <div class="login-logo">🍩</div>
+              <div>
+                <h3>Employee Login</h3>
+                <p>Use your username/email and PIN</p>
+              </div>
             </div>
 
-            <div class="field">
-              <label for="loginPin">PIN</label>
-              <input id="loginPin" type="password" placeholder="1234" />
+            <div class="form-grid">
+              <div class="field">
+                <label for="loginValue">Username or Email</label>
+                <input id="loginValue" type="text" placeholder="owner" />
+              </div>
+
+              <div class="field">
+                <label for="loginPin">PIN</label>
+                <input id="loginPin" type="password" placeholder="1234" />
+              </div>
             </div>
-          </div>
 
-          <div class="button-row">
-            <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
-            <button id="demoFillBtn" class="btn btn-secondary" type="button">Fill Demo Login</button>
-          </div>
+            <div class="button-row">
+              <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
+              <button id="demoFillBtn" class="btn btn-secondary" type="button">Fill Demo Login</button>
+            </div>
 
-          <div id="loginMsg" class="message"></div>
+            <div id="loginMsg" class="message"></div>
+          </div>
         </section>
 
         <section id="portalView" class="hidden">
@@ -159,7 +175,7 @@
                   <div class="list-item"><p>Empty cart</p></div>
                 </div>
 
-                <div class="form-grid compact">
+                <div class="form-grid compact compact-4">
                   <div class="field">
                     <label for="discountInput">Discount</label>
                     <input id="discountInput" type="number" min="0" step="0.01" value="0" />
