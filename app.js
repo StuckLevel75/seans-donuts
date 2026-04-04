@@ -1,8 +1,8 @@
 window.onload = function () {
-  var DEFAULT_API_URL = "";
+  var DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbw8QmZ4jl1ym9RwOlqP5_9XVgQNxAZiyMkA9YVYT9ag4dM-BPHaurTIw0aULBJDL5Xvwg/exec";
 
   var state = {
-    apiUrl: "",
+    apiUrl: DEFAULT_API_URL,
     session: null,
     bootstrap: null,
     products: [],
@@ -54,22 +54,8 @@ window.onload = function () {
     if (node) node.value = value;
   }
 
-  function getSavedApiUrl() {
-    return localStorage.getItem("sd_api_url") || DEFAULT_API_URL || "";
-  }
-
-  function saveApiUrl() {
-    var value = (el("apiUrl").value || "").trim();
-    state.apiUrl = value;
-    localStorage.setItem("sd_api_url", value);
-    showMessage("loginMsg", value ? "API URL saved." : "API URL cleared.", "success");
-  }
-
   async function api(action, payload) {
-    var url = state.apiUrl || getSavedApiUrl();
-    if (!url) throw new Error("Missing Apps Script URL.");
-
-    var res = await fetch(url, {
+    var res = await fetch(state.apiUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
@@ -328,8 +314,6 @@ window.onload = function () {
     showMessage("loginMsg", "Signing in...", "info");
 
     try {
-      state.apiUrl = (el("apiUrl").value || "").trim();
-
       var loginValue = (el("loginValue").value || "").trim();
       var loginPin = (el("loginPin").value || "").trim();
 
@@ -618,20 +602,8 @@ window.onload = function () {
   }
 
   function wireEvents() {
-    safeValue("apiUrl", getSavedApiUrl());
-
-    if (el("saveApiUrlBtn")) el("saveApiUrlBtn").onclick = saveApiUrl;
     if (el("loginBtn")) el("loginBtn").onclick = loginNow;
     if (el("logoutBtn")) el("logoutBtn").onclick = logoutNow;
-
-    if (el("demoFillBtn")) {
-      el("demoFillBtn").onclick = function () {
-        safeValue("loginValue", "owner");
-        safeValue("loginPin", "1234");
-        showMessage("loginMsg", "Demo login filled.", "success");
-      };
-    }
-
     if (el("submitOrderBtn")) el("submitOrderBtn").onclick = submitOrder;
     if (el("searchOrdersBtn")) el("searchOrdersBtn").onclick = loadOrders;
     if (el("lookupRewardsBtn")) el("lookupRewardsBtn").onclick = loadRewards;
