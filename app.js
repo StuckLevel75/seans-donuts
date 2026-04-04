@@ -63,11 +63,11 @@ window.onload = function () {
     return Number((el(id) && el(id).value) || 0);
   }
 
-  function isOwnerOverrideAllowed() {
+  function can(permissionKey) {
     return !!(
       state.session &&
       state.session.permissions &&
-      (state.session.permissions.isOwner || state.session.permissions.isAdmin)
+      state.session.permissions[permissionKey]
     );
   }
 
@@ -119,17 +119,20 @@ window.onload = function () {
     var nav = el("navTabs");
     if (!nav) return;
 
-    var items = [
-      { key: "dashboard", label: "Dashboard" },
-      { key: "pos", label: "POS" },
-      { key: "orders", label: "Orders" },
-      { key: "rewards", label: "Rewards" },
-      { key: "raffle", label: "Raffle" },
-      { key: "payroll", label: "Payroll" }
-    ];
+    var items = [];
 
-    if (isOwnerOverrideAllowed()) {
-      items.push({ key: "settings", label: "Settings" });
+    if (can("canViewDashboard")) items.push({ key: "dashboard", label: "Dashboard" });
+    if (can("canUsePOS")) items.push({ key: "pos", label: "POS" });
+    if (can("canViewOrders")) items.push({ key: "orders", label: "Orders" });
+    if (can("canViewRewards")) items.push({ key: "rewards", label: "Rewards" });
+    if (can("canViewRaffle")) items.push({ key: "raffle", label: "Raffle" });
+    if (can("canViewPayroll")) items.push({ key: "payroll", label: "Payroll" });
+    if (can("canViewSettings")) items.push({ key: "settings", label: "Settings" });
+
+    if (!items.length) return;
+
+    if (!items.some(function(item) { return item.key === state.activeTab; })) {
+      state.activeTab = items[0].key;
     }
 
     var html = "";
@@ -146,6 +149,21 @@ window.onload = function () {
       buttons[j].onclick = function () {
         activateTab(this.getAttribute("data-tab"));
       };
+    }
+  }
+
+  function applySectionVisibility() {
+    if (el("ordersSection")) el("ordersSection").classList.toggle("hidden", !can("canViewOrders"));
+    if (el("rewardsSection")) el("rewardsSection").classList.toggle("hidden", !can("canViewRewards"));
+    if (el("raffleSection")) el("raffleSection").classList.toggle("hidden", !can("canViewRaffle"));
+    if (el("payrollSection")) el("payrollSection").classList.toggle("hidden", !can("canViewPayroll"));
+    if (el("settingsSection")) el("settingsSection").classList.toggle("hidden", !can("canViewSettings"));
+    if (el("posSection")) el("posSection").classList.toggle("hidden", !can("canUsePOS"));
+    if (el("dashboardSection")) el("dashboardSection").classList.toggle("hidden", !can("canViewDashboard"));
+
+    var ownerOverrideBox = el("ownerOverrideBox");
+    if (ownerOverrideBox) {
+      ownerOverrideBox.classList.toggle("hidden", !can("canOverrideCheckout"));
     }
   }
 
@@ -216,7 +234,7 @@ window.onload = function () {
   }
 
   function syncPaidDerivedFields() {
-    if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
+    if (can("canOverrideCheckout") && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
       return;
     }
 
@@ -296,7 +314,7 @@ window.onload = function () {
         if (next <= 0) delete state.cart[product.name];
         else state.cart[product.name] = next;
 
-        if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
+        if (can("canOverrideCheckout") && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
           syncAmountPaidFromManualFields();
         } else {
           syncPaidDerivedFields();
@@ -382,12 +400,6 @@ window.onload = function () {
     safeValue("settingsBankId", prefs.bankId || "24596194");
 
     if (el("logoutBtn")) el("logoutBtn").classList.remove("hidden");
-
-    var ownerOverrideBox = el("ownerOverrideBox");
-    if (ownerOverrideBox) {
-      if (isOwnerOverrideAllowed()) ownerOverrideBox.classList.remove("hidden");
-      else ownerOverrideBox.classList.add("hidden");
-    }
   }
 
   async function loadBootstrap() {
@@ -419,6 +431,7 @@ window.onload = function () {
       await loadBootstrap();
 
       applySessionToHeader();
+      applySectionVisibility();
       buildProductGrid();
       renderCart();
       renderNav();
@@ -426,13 +439,14 @@ window.onload = function () {
       if (el("loginView")) el("loginView").classList.add("hidden");
       if (el("portalView")) el("portalView").classList.remove("hidden");
 
-      activateTab("dashboard");
+      activateTab(state.activeTab);
 
-      await Promise.allSettled([
-        loadOrders(),
-        loadRaffle(),
-        loadPayroll()
-      ]);
+      var loads = [];
+      if (can("canViewOrders")) loads.push(loadOrders());
+      if (can("canViewRaffle")) loads.push(loadRaffle());
+      if (can("canViewPayroll")) loads.push(loadPayroll());
+
+      await Promise.allSettled(loads);
 
       showMessage("loginMsg", "", "success");
     } catch (err) {
@@ -461,7 +475,7 @@ window.onload = function () {
   }
 
   async function submitOrder() {
-    if (!state.session) return;
+    if (!state.session || !can("canUsePOS")) return;
 
     var items = [];
     for (var name in state.cart) {
@@ -487,6 +501,7 @@ window.onload = function () {
         customerName: (el("customerName").value || "").trim(),
         phoneNumber: (el("phoneNumber").value || "").trim(),
         items: items,
+        amountPaid: Number((el("amountPaidInput").value || 0)),
         discount: Number((el("discountInput").value || 0)),
         tip: Number((el("tipInput").value || 0)),
         mileage: Number((el("mileageInput").value || 0)),
@@ -515,10 +530,9 @@ window.onload = function () {
 
       showMessage("orderMsg", result.message || "Order submitted.", "success");
 
-      await Promise.allSettled([
-        loadOrders(),
-        loadBootstrap()
-      ]);
+      var refreshes = [loadBootstrap()];
+      if (can("canViewOrders")) refreshes.push(loadOrders());
+      await Promise.allSettled(refreshes);
 
       renderBootstrap();
     } catch (err) {
@@ -527,7 +541,7 @@ window.onload = function () {
   }
 
   async function loadOrders() {
-    if (!state.session) return;
+    if (!state.session || !can("canViewOrders")) return;
 
     var list = el("ordersList");
     if (!list) return;
@@ -539,6 +553,11 @@ window.onload = function () {
         pin: (el("loginPin").value || "").trim(),
         query: (el("orderSearchInput").value || "").trim()
       });
+
+      if (!result.ok) {
+        list.innerHTML = '<div class="list-item"><p>' + escapeHtml(result.message || "Could not load orders.") + '</p></div>';
+        return;
+      }
 
       var rows = result.results || [];
       if (!rows.length) {
@@ -560,7 +579,7 @@ window.onload = function () {
   }
 
   async function loadRewards() {
-    if (!state.session) return;
+    if (!state.session || !can("canViewRewards")) return;
 
     var customerName = (el("rewardCustomerName").value || el("customerName").value || "").trim();
     if (!customerName) {
@@ -577,6 +596,11 @@ window.onload = function () {
         customerName: customerName
       });
 
+      if (!result.ok) {
+        showMessage("rewardsMsg", result.message || "Could not load rewards.", "error");
+        return;
+      }
+
       var data = result.reward || {};
       safeText("rewardVisits", String(Number(data.visits || 0)));
       safeText("rewardProgress", String(Number(data.visitProgress || 0)) + " / 10");
@@ -592,7 +616,7 @@ window.onload = function () {
   }
 
   async function loadRaffle() {
-    if (!state.session) return;
+    if (!state.session || !can("canViewRaffle")) return;
 
     var list = el("raffleList");
     if (!list) return;
@@ -603,6 +627,11 @@ window.onload = function () {
         email: state.session.employee.email || state.session.employee.username || "",
         pin: (el("loginPin").value || "").trim()
       });
+
+      if (!result.ok) {
+        list.innerHTML = '<div class="list-item"><p>' + escapeHtml(result.message || "Could not load raffle.") + '</p></div>';
+        return;
+      }
 
       var rows = result.entries || [];
       if (!rows.length) {
@@ -624,7 +653,7 @@ window.onload = function () {
   }
 
   async function loadPayroll() {
-    if (!state.session) return;
+    if (!state.session || !can("canViewPayroll")) return;
 
     var list = el("payrollList");
     if (!list) return;
@@ -637,6 +666,11 @@ window.onload = function () {
         startDate: el("payrollStartDate").value || "",
         endDate: el("payrollEndDate").value || ""
       });
+
+      if (!result.ok) {
+        list.innerHTML = '<div class="list-item"><p>' + escapeHtml(result.message || "Could not load payroll.") + '</p></div>';
+        return;
+      }
 
       var rows = result.rows || [];
       if (!rows.length) {
@@ -658,7 +692,7 @@ window.onload = function () {
   }
 
   async function saveSettingsAction() {
-    if (!state.session) return;
+    if (!state.session || !can("canSaveSettings")) return;
 
     showMessage("settingsMsg", "Saving settings...", "info");
 
@@ -703,7 +737,7 @@ window.onload = function () {
 
     if (el("mileageInput")) {
       el("mileageInput").oninput = function () {
-        if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
+        if (can("canOverrideCheckout") && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
           syncAmountPaidFromManualFields();
         } else {
           syncPaidDerivedFields();
@@ -722,7 +756,7 @@ window.onload = function () {
 
     if (el("discountInput")) {
       el("discountInput").oninput = function () {
-        if (!isOwnerOverrideAllowed()) return;
+        if (!can("canOverrideCheckout")) return;
         state.lastManualEdit = "discount";
         if (el("tipInput")) el("tipInput").value = "0";
         syncAmountPaidFromManualFields();
@@ -732,7 +766,7 @@ window.onload = function () {
 
     if (el("tipInput")) {
       el("tipInput").oninput = function () {
-        if (!isOwnerOverrideAllowed()) return;
+        if (!can("canOverrideCheckout")) return;
         state.lastManualEdit = "tip";
         if (el("discountInput")) el("discountInput").value = "0";
         syncAmountPaidFromManualFields();
