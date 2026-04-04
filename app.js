@@ -7,7 +7,8 @@ window.onload = function () {
     bootstrap: null,
     products: [],
     cart: {},
-    activeTab: "dashboard"
+    activeTab: "dashboard",
+    lastManualEdit: null
   };
 
   var sectionMap = {
@@ -26,6 +27,10 @@ window.onload = function () {
 
   function money(value) {
     return "$" + Number(value || 0).toFixed(2);
+  }
+
+  function round2(value) {
+    return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
   }
 
   function escapeHtml(text) {
@@ -52,6 +57,10 @@ window.onload = function () {
   function safeValue(id, value) {
     var node = el(id);
     if (node) node.value = value;
+  }
+
+  function getNumericValue(id) {
+    return Number((el(id) && el(id).value) || 0);
   }
 
   async function api(action, payload) {
@@ -182,6 +191,67 @@ window.onload = function () {
     }
   }
 
+  function getBaseTotal() {
+    var subtotal = 0;
+
+    for (var name in state.cart) {
+      if (state.cart.hasOwnProperty(name)) {
+        var qty = Number(state.cart[name] || 0);
+        if (qty <= 0) continue;
+
+        for (var i = 0; i < state.products.length; i++) {
+          if (state.products[i].name === name) {
+            subtotal += Number(state.products[i].price || 0) * qty;
+            break;
+          }
+        }
+      }
+    }
+
+    var mileage = getNumericValue("mileageInput");
+    return round2(subtotal + mileage);
+  }
+
+  function syncPaidDerivedFields() {
+    var amountPaidEl = el("amountPaidInput");
+    var discountEl = el("discountInput");
+    var tipEl = el("tipInput");
+    if (!amountPaidEl || !discountEl || !tipEl) return;
+
+    var baseTotal = getBaseTotal();
+    var amountPaid = round2(Number(amountPaidEl.value || 0));
+
+    if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
+      return;
+    }
+
+    if (amountPaid <= 0) {
+      discountEl.value = "0";
+      tipEl.value = "0";
+      return;
+    }
+
+    if (amountPaid >= baseTotal) {
+      discountEl.value = "0";
+      tipEl.value = String(round2(amountPaid - baseTotal));
+    } else {
+      discountEl.value = String(round2(baseTotal - amountPaid));
+      tipEl.value = "0";
+    }
+  }
+
+  function syncAmountPaidFromManualFields() {
+    var amountPaidEl = el("amountPaidInput");
+    if (!amountPaidEl) return;
+
+    var baseTotal = getBaseTotal();
+    var discount = getNumericValue("discountInput");
+    var tip = getNumericValue("tipInput");
+    var amountPaid = round2(baseTotal - discount + tip);
+
+    amountPaidEl.value = String(Math.max(0, amountPaid));
+  }
+
   function buildProductGrid() {
     var grid = el("productGrid");
     if (!grid) return;
@@ -222,6 +292,12 @@ window.onload = function () {
 
         if (next <= 0) delete state.cart[product.name];
         else state.cart[product.name] = next;
+
+        if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
+          syncAmountPaidFromManualFields();
+        } else {
+          syncPaidDerivedFields();
+        }
 
         buildProductGrid();
         renderCart();
@@ -272,15 +348,17 @@ window.onload = function () {
     var subtotal = 0;
     for (var k = 0; k < items.length; k++) subtotal += items[k].total;
 
-    var discount = Number((el("discountInput") && el("discountInput").value) || 0);
-    var tip = Number((el("tipInput") && el("tipInput").value) || 0);
-    var mileage = Number((el("mileageInput") && el("mileageInput").value) || 0);
-    var total = Math.max(0, subtotal - discount + tip + mileage);
+    var discount = getNumericValue("discountInput");
+    var tip = getNumericValue("tipInput");
+    var mileage = getNumericValue("mileageInput");
+    var amountPaid = getNumericValue("amountPaidInput");
+    var total = Math.max(0, round2(subtotal - discount + tip + mileage));
 
     safeText("subtotalText", money(subtotal));
     safeText("discountText", money(discount));
     safeText("tipText", money(tip));
     safeText("mileageText", money(mileage));
+    safeText("amountPaidText", money(amountPaid));
     safeText("totalText", money(total));
   }
 
@@ -359,6 +437,7 @@ window.onload = function () {
     state.products = [];
     state.cart = {};
     state.activeTab = "dashboard";
+    state.lastManualEdit = null;
 
     if (el("loginView")) el("loginView").classList.remove("hidden");
     if (el("portalView")) el("portalView").classList.add("hidden");
@@ -412,15 +491,18 @@ window.onload = function () {
       }
 
       state.cart = {};
+      state.lastManualEdit = null;
       buildProductGrid();
-      renderCart();
 
       safeValue("customerName", "");
       safeValue("phoneNumber", "");
       safeValue("discountInput", "0");
       safeValue("tipInput", "0");
       safeValue("mileageInput", "0");
+      safeValue("amountPaidInput", "0");
       safeValue("notes", "");
+
+      renderCart();
 
       showMessage("orderMsg", result.message || "Order submitted.", "success");
 
@@ -610,15 +692,49 @@ window.onload = function () {
     if (el("loadPayrollBtn")) el("loadPayrollBtn").onclick = loadPayroll;
     if (el("saveSettingsBtn")) el("saveSettingsBtn").onclick = saveSettingsAction;
 
-    if (el("discountInput")) el("discountInput").oninput = renderCart;
-    if (el("tipInput")) el("tipInput").oninput = renderCart;
-    if (el("mileageInput")) el("mileageInput").oninput = renderCart;
+    if (el("mileageInput")) {
+      el("mileageInput").oninput = function () {
+        if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
+          syncAmountPaidFromManualFields();
+        } else {
+          syncPaidDerivedFields();
+        }
+        renderCart();
+      };
+    }
+
+    if (el("amountPaidInput")) {
+      el("amountPaidInput").oninput = function () {
+        state.lastManualEdit = "amountPaid";
+        syncPaidDerivedFields();
+        renderCart();
+      };
+    }
+
+    if (el("discountInput")) {
+      el("discountInput").oninput = function () {
+        state.lastManualEdit = "discount";
+        if (el("tipInput")) el("tipInput").value = "0";
+        syncAmountPaidFromManualFields();
+        renderCart();
+      };
+    }
+
+    if (el("tipInput")) {
+      el("tipInput").oninput = function () {
+        state.lastManualEdit = "tip";
+        if (el("discountInput")) el("discountInput").value = "0";
+        syncAmountPaidFromManualFields();
+        renderCart();
+      };
+    }
   }
 
   function init() {
     wireEvents();
     setDefaultDates();
     hideAllSections();
+    renderCart();
   }
 
   init();
