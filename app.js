@@ -63,6 +63,14 @@ window.onload = function () {
     return Number((el(id) && el(id).value) || 0);
   }
 
+  function isOwnerOverrideAllowed() {
+    return !!(
+      state.session &&
+      state.session.permissions &&
+      (state.session.permissions.isOwner || state.session.permissions.isAdmin)
+    );
+  }
+
   async function api(action, payload) {
     var res = await fetch(state.apiUrl, {
       method: "POST",
@@ -120,12 +128,7 @@ window.onload = function () {
       { key: "payroll", label: "Payroll" }
     ];
 
-    var canSeeSettings = false;
-    if (state.session && state.session.permissions) {
-      canSeeSettings = !!(state.session.permissions.isOwner || state.session.permissions.isAdmin);
-    }
-
-    if (canSeeSettings) {
+    if (isOwnerOverrideAllowed()) {
       items.push({ key: "settings", label: "Settings" });
     }
 
@@ -213,6 +216,10 @@ window.onload = function () {
   }
 
   function syncPaidDerivedFields() {
+    if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
+      return;
+    }
+
     var amountPaidEl = el("amountPaidInput");
     var discountEl = el("discountInput");
     var tipEl = el("tipInput");
@@ -220,10 +227,6 @@ window.onload = function () {
 
     var baseTotal = getBaseTotal();
     var amountPaid = round2(Number(amountPaidEl.value || 0));
-
-    if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
-      return;
-    }
 
     if (amountPaid <= 0) {
       discountEl.value = "0";
@@ -293,7 +296,7 @@ window.onload = function () {
         if (next <= 0) delete state.cart[product.name];
         else state.cart[product.name] = next;
 
-        if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
+        if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
           syncAmountPaidFromManualFields();
         } else {
           syncPaidDerivedFields();
@@ -379,6 +382,12 @@ window.onload = function () {
     safeValue("settingsBankId", prefs.bankId || "24596194");
 
     if (el("logoutBtn")) el("logoutBtn").classList.remove("hidden");
+
+    var ownerOverrideBox = el("ownerOverrideBox");
+    if (ownerOverrideBox) {
+      if (isOwnerOverrideAllowed()) ownerOverrideBox.classList.remove("hidden");
+      else ownerOverrideBox.classList.add("hidden");
+    }
   }
 
   async function loadBootstrap() {
@@ -694,7 +703,7 @@ window.onload = function () {
 
     if (el("mileageInput")) {
       el("mileageInput").oninput = function () {
-        if (state.lastManualEdit === "discount" || state.lastManualEdit === "tip") {
+        if (isOwnerOverrideAllowed() && (state.lastManualEdit === "discount" || state.lastManualEdit === "tip")) {
           syncAmountPaidFromManualFields();
         } else {
           syncPaidDerivedFields();
@@ -713,6 +722,7 @@ window.onload = function () {
 
     if (el("discountInput")) {
       el("discountInput").oninput = function () {
+        if (!isOwnerOverrideAllowed()) return;
         state.lastManualEdit = "discount";
         if (el("tipInput")) el("tipInput").value = "0";
         syncAmountPaidFromManualFields();
@@ -722,6 +732,7 @@ window.onload = function () {
 
     if (el("tipInput")) {
       el("tipInput").oninput = function () {
+        if (!isOwnerOverrideAllowed()) return;
         state.lastManualEdit = "tip";
         if (el("discountInput")) el("discountInput").value = "0";
         syncAmountPaidFromManualFields();
