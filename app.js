@@ -27,7 +27,7 @@ function money(v) {
 }
 
 function escapeHtml(str) {
-  return String(str || '')
+  return String(str == null ? '' : str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -44,12 +44,12 @@ function showMessage(elId, text, type = 'info') {
 
 function setText(id, value) {
   const el = $(id);
-  if (el) el.textContent = value;
+  if (el) el.textContent = value == null ? '' : String(value);
 }
 
 function setValue(id, value) {
   const el = $(id);
-  if (el) el.value = value;
+  if (el) el.value = value == null ? '' : String(value);
 }
 
 function getValue(id, fallback = '') {
@@ -57,16 +57,26 @@ function getValue(id, fallback = '') {
   return el ? el.value : fallback;
 }
 
+function showEl(id) {
+  const el = $(id);
+  if (el) el.classList.remove('hidden');
+}
+
+function hideEl(id) {
+  const el = $(id);
+  if (el) el.classList.add('hidden');
+}
+
 function requireApiUrl() {
   if (!state.apiUrl) {
-    showMessage('loginMsg', 'Paste your Apps Script Web App URL first.', 'error');
+    showMessage('loginMsg', 'Missing API URL.', 'error');
     return false;
   }
   return true;
 }
 
 async function api(action, payload = {}) {
-  if (!state.apiUrl) throw new Error('Missing Apps Script Web App URL.');
+  if (!state.apiUrl) throw new Error('Missing API URL.');
 
   const response = await fetch(state.apiUrl, {
     method: 'POST',
@@ -82,26 +92,17 @@ async function api(action, payload = {}) {
   return data;
 }
 
-function saveApiUrl() {
-  const input = $('apiUrl');
-  const value = input ? input.value.trim() : '';
-  state.apiUrl = value;
-  localStorage.setItem('sd_api_url', value);
-  showMessage('loginMsg', value ? 'Apps Script URL saved.' : '', 'success');
-}
-
-function getSessionRole() {
+function getRole() {
   return String(state.session?.employee?.role || '').trim().toLowerCase();
 }
 
-function getPermissions() {
+function getPerms() {
   return state.session?.permissions || {};
 }
 
 function isOwnerLike() {
-  const perms = getPermissions();
-  const role = getSessionRole();
-
+  const perms = getPerms();
+  const role = getRole();
   return !!(
     perms.isOwner ||
     perms.isAdmin ||
@@ -110,26 +111,35 @@ function isOwnerLike() {
   );
 }
 
-function canSeeTab(tabKey) {
-  if (tabKey === 'settings') return isOwnerLike();
-  return true;
+function isManagerLike() {
+  const perms = getPerms();
+  const role = getRole();
+  return !!(
+    perms.isOwner ||
+    perms.isAdmin ||
+    perms.isManager ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'manager'
+  );
 }
 
 function getVisibleTabs() {
-  return tabs.filter(tab => !tab.ownerOnly || canSeeTab(tab.key));
+  return tabs.filter(tab => {
+    if (!tab.ownerOnly) return true;
+    return isOwnerLike();
+  });
 }
 
 function renderNav() {
   const nav = $('navTabs');
-  if (!nav) {
-    console.error('navTabs element not found');
-    return;
-  }
+  if (!nav) return;
 
-  const visibleTabs = getVisibleTabs();
+  let visibleTabs = getVisibleTabs();
+  if (!visibleTabs.length) visibleTabs = tabs.filter(t => !t.ownerOnly);
 
   if (!visibleTabs.some(tab => tab.key === state.activeTab)) {
-    state.activeTab = visibleTabs.length ? visibleTabs[0].key : 'dashboard';
+    state.activeTab = visibleTabs[0]?.key || 'dashboard';
   }
 
   nav.innerHTML = visibleTabs.map(tab => `
@@ -147,10 +157,6 @@ function renderNav() {
       activateTab(btn.dataset.tab);
     });
   });
-
-  document.querySelectorAll('[data-tab-target]').forEach(btn => {
-    btn.onclick = () => activateTab(btn.dataset.tabTarget);
-  });
 }
 
 function activateTab(tab) {
@@ -158,6 +164,7 @@ function activateTab(tab) {
   const allowed = visibleTabs.some(t => t.key === tab);
 
   state.activeTab = allowed ? tab : (visibleTabs[0]?.key || 'dashboard');
+
   renderNav();
 
   const sectionMap = {
@@ -175,17 +182,21 @@ function activateTab(tab) {
     if (el) el.classList.add('hidden');
   });
 
-  const activeSectionId = sectionMap[state.activeTab];
-  const activeSection = $(activeSectionId);
+  const activeSection = $(sectionMap[state.activeTab]);
   if (activeSection) activeSection.classList.remove('hidden');
+}
+
+function updateOwnerUI() {
+  if (isOwnerLike()) showEl('ownerOverrideBox');
+  else hideEl('ownerOverrideBox');
 }
 
 function buildProductGrid() {
   const grid = $('productGrid');
   if (!grid) return;
 
-  if (!state.products.length) {
-    grid.innerHTML = '<div class="list-item"><p>No products returned yet.</p></div>';
+  if (!Array.isArray(state.products) || !state.products.length) {
+    grid.innerHTML = '<div class="list-item"><p>No products yet.</p></div>';
     return;
   }
 
@@ -194,8 +205,8 @@ function buildProductGrid() {
 
     return `
       <div class="product-card">
-        <h4>${escapeHtml(product.name)}</h4>
-        <div class="product-price">${money(product.price)}</div>
+        <h4>${escapeHtml(product.name || 'Product')}</h4>
+        <div class="product-price">${money(product.price || 0)}</div>
         <div class="qty-row">
           <button type="button" data-qty="down" data-index="${index}">−</button>
           <div class="qty-pill">${qty}</div>
@@ -211,12 +222,12 @@ function buildProductGrid() {
       if (!product) return;
 
       const current = Number(state.cart[product.name] || 0);
-      const nextQty = btn.dataset.qty === 'up'
+      const next = btn.dataset.qty === 'up'
         ? current + 1
         : Math.max(0, current - 1);
 
-      if (nextQty <= 0) delete state.cart[product.name];
-      else state.cart[product.name] = nextQty;
+      if (next <= 0) delete state.cart[product.name];
+      else state.cart[product.name] = next;
 
       buildProductGrid();
       renderCart();
@@ -228,21 +239,22 @@ function renderCart() {
   const list = $('cartList');
   if (!list) return;
 
-  const items = Object.entries(state.cart).map(([name, qty]) => {
-    const product = state.products.find(p => p.name === name);
-    const price = Number(product?.price || 0);
-    const quantity = Number(qty || 0);
-
-    return {
-      name,
-      qty: quantity,
-      price,
-      total: price * quantity
-    };
-  });
+  const items = Object.entries(state.cart)
+    .filter(([, qty]) => Number(qty) > 0)
+    .map(([name, qty]) => {
+      const product = state.products.find(p => p.name === name) || {};
+      const price = Number(product.price || 0);
+      const quantity = Number(qty || 0);
+      return {
+        name,
+        qty: quantity,
+        price,
+        total: price * quantity
+      };
+    });
 
   if (!items.length) {
-    list.innerHTML = '<div class="list-item"><p>No items yet.</p></div>';
+    list.innerHTML = '<div class="list-item"><p>Empty cart</p></div>';
   } else {
     list.innerHTML = items.map(item => `
       <div class="list-item">
@@ -253,46 +265,114 @@ function renderCart() {
   }
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const mileage = Number(getValue('mileageInput', 0) || 0);
+  const amountPaid = Number(getValue('amountPaidInput', 0) || 0);
   const discount = Number(getValue('discountInput', 0) || 0);
   const tip = Number(getValue('tipInput', 0) || 0);
-  const total = Math.max(0, subtotal - discount + tip);
+  const total = Math.max(0, subtotal + mileage - discount + tip);
 
   setText('subtotalText', money(subtotal));
+  setText('mileageText', money(mileage));
   setText('discountText', money(discount));
   setText('tipText', money(tip));
+  setText('amountPaidText', money(amountPaid));
   setText('totalText', money(total));
 }
 
 function fillPortalHeader() {
   const settings = state.bootstrap?.settings || {};
-  const session = state.session || {};
-  const prefs = session.portalPrefs || {};
+  const ui = settings.uiText || {};
+  const theme = settings.theme || {};
+  const prefs = state.session?.portalPrefs || {};
+  const employee = state.session?.employee || {};
 
-  setText('portalName', settings.portalName || "Sean's Donuts");
-  setText('portalSubtitle', settings.portalSubtitle || 'GitHub Portal');
-  setText('welcomeTitle', `Welcome, ${session.employee?.name || 'Employee'}`);
-  setText(
-    'announcementBar',
-    prefs.announcement || settings.dashboardMessage || "Welcome to Sean's Donuts Portal"
-  );
-  setText('bankIdText', prefs.bankId || settings.bankId || '24596194');
-  setText(
-    'userBadge',
-    `${session.employee?.name || 'Portal User'} · ${session.employee?.role || 'Employee'}`
-  );
-  setText('sessionStatus', 'Signed in');
-  setText('sessionRole', session.employee?.role || 'Employee');
+  const portalName = settings.portalName || "Sean's Donuts";
+  const portalSubtitle = settings.portalSubtitle || 'Employee Portal';
+  const announcement = prefs.announcement || settings.announcement || settings.dashboardMessage || "Welcome to Sean's Donuts Portal";
+  const bankId = prefs.bankId || settings.bankId || '24596194';
+  const logoEmoji = ui.logoEmoji || settings.logoEmoji || '🍩';
 
-  const logoutBtn = $('logoutBtn');
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
+  setText('portalName', portalName);
+  setText('portalSubtitle', portalSubtitle);
+  setText('announcementBar', announcement);
+  setText('bankIdText', bankId);
+  setText('sessionStatus', state.session ? 'Signed in' : 'Signed out');
+  setText('sessionRole', employee.role || 'Employee');
+  setText('userBadge', `${employee.name || 'Portal User'}${employee.role ? ` · ${employee.role}` : ''}`);
+  setText('welcomeTitle', `Welcome, ${employee.name || 'Employee'}`);
 
-  setValue('settingsAnnouncement', prefs.announcement || '');
-  setValue('settingsBankId', prefs.bankId || settings.bankId || '24596194');
+  setText('dashboardPortalName', portalName);
+  setText('dashboardPortalSubtitle', portalSubtitle);
+  setText('dashboardBankId', bankId);
 
-  const settingsTheme = $('settingsTheme');
-  if (settingsTheme) {
-    settingsTheme.value = prefs.portalTheme || settings.portalTheme || settings.theme || '';
-  }
+  setText('loginTitle', ui.loginTitle || portalName);
+  setText('loginSubtitle', ui.loginSubtitle || 'Sign in with your username or email and PIN.');
+
+  setText('dashboardSubtitleText', ui.dashboardSubtitle || 'Portal overview');
+  setText('posTitleText', ui.posTitle || 'POS');
+  setText('posSubtitleText', ui.posSubtitle || 'Create a new order');
+  setText('ordersTitleText', ui.ordersTitle || 'Orders');
+  setText('ordersSubtitleText', ui.ordersSubtitle || 'Search recent orders');
+  setText('rewardsTitleText', ui.rewardsTitle || 'Rewards');
+  setText('rewardsSubtitleText', ui.rewardsSubtitle || 'Lookup customer rewards');
+  setText('raffleTitleText', ui.raffleTitle || 'Raffle');
+  setText('raffleSubtitleText', ui.raffleSubtitle || 'Recent raffle entries');
+  setText('payrollTitleText', ui.payrollTitle || 'Payroll');
+  setText('payrollSubtitleText', ui.payrollSubtitle || 'View payroll rows');
+  setText('settingsTitleText', ui.settingsTitle || 'Settings');
+  setText('settingsSubtitleText', ui.settingsSubtitle || 'Owner/Admin controls');
+
+  setText('loginLogo', logoEmoji);
+  setText('brandLogo', logoEmoji);
+
+  setValue('settingsPortalName', portalName);
+  setValue('settingsPortalSubtitle', portalSubtitle);
+  setValue('settingsAnnouncement', announcement);
+  setValue('settingsBankId', bankId);
+
+  setValue('themePrimary', theme.primary || '');
+  setValue('themePrimaryDark', theme.primaryDark || '');
+  setValue('themeSecondary', theme.secondary || '');
+  setValue('themeBg', theme.bg || '');
+  setValue('themeCard', theme.card || '');
+  setValue('themeText', theme.text || '');
+  setValue('themeMuted', theme.muted || '');
+  setValue('themeBorder', theme.border || '');
+
+  setValue('uiLogoEmoji', ui.logoEmoji || logoEmoji);
+  setValue('uiLoginTitle', ui.loginTitle || portalName);
+  setValue('uiLoginSubtitle', ui.loginSubtitle || 'Sign in with your username or email and PIN.');
+  setValue('uiDashboardTitle', ui.dashboardTitle || 'Welcome');
+  setValue('uiDashboardSubtitle', ui.dashboardSubtitle || 'Portal overview');
+  setValue('uiPOSTitle', ui.posTitle || 'POS');
+  setValue('uiPOSSubtitle', ui.posSubtitle || 'Create a new order');
+  setValue('uiOrdersTitle', ui.ordersTitle || 'Orders');
+  setValue('uiOrdersSubtitle', ui.ordersSubtitle || 'Search recent orders');
+  setValue('uiRewardsTitle', ui.rewardsTitle || 'Rewards');
+  setValue('uiRewardsSubtitle', ui.rewardsSubtitle || 'Lookup customer rewards');
+  setValue('uiRaffleTitle', ui.raffleTitle || 'Raffle');
+  setValue('uiRaffleSubtitle', ui.raffleSubtitle || 'Recent raffle entries');
+  setValue('uiPayrollTitle', ui.payrollTitle || 'Payroll');
+  setValue('uiPayrollSubtitle', ui.payrollSubtitle || 'View payroll rows');
+  setValue('uiSettingsTitle', ui.settingsTitle || 'Settings');
+  setValue('uiSettingsSubtitle', ui.settingsSubtitle || 'Owner/Admin controls');
+
+  applyTheme(theme);
+  updateOwnerUI();
+}
+
+function applyTheme(theme = {}) {
+  const root = document.documentElement;
+  if (!root) return;
+
+  if (theme.primary) root.style.setProperty('--primary', theme.primary);
+  if (theme.primaryDark) root.style.setProperty('--primary-dark', theme.primaryDark);
+  if (theme.secondary) root.style.setProperty('--secondary', theme.secondary);
+  if (theme.bg) root.style.setProperty('--bg', theme.bg);
+  if (theme.card) root.style.setProperty('--card', theme.card);
+  if (theme.text) root.style.setProperty('--text', theme.text);
+  if (theme.muted) root.style.setProperty('--muted', theme.muted);
+  if (theme.border) root.style.setProperty('--border', theme.border);
 }
 
 function renderBootstrap() {
@@ -321,33 +401,151 @@ function renderBootstrap() {
     ? settings.paymentMethods
     : state.paymentMethods;
 
+  state.paymentMethods = methods;
+
   const paymentMethod = $('paymentMethod');
   if (paymentMethod) {
     paymentMethod.innerHTML = methods.map(method => `
       <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
     `).join('');
   }
+
+  renderAdminCollections();
+}
+
+function renderAdminCollections() {
+  renderProductsAdmin();
+  renderEmployeesAdmin();
+  renderPaymentMethodsAdmin();
+}
+
+function renderProductsAdmin() {
+  const wrap = $('productsAdminList');
+  if (!wrap) return;
+
+  const products = Array.isArray(state.bootstrap?.settings?.products)
+    ? state.bootstrap.settings.products
+    : Array.isArray(state.products)
+      ? state.products
+      : [];
+
+  if (!products.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No products loaded.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = products.map((item, index) => `
+    <div class="admin-row" data-product-row="${index}">
+      <input type="text" data-product-name value="${escapeHtml(item.name || '')}" placeholder="Product Name" />
+      <input type="number" min="0" step="0.01" data-product-price value="${escapeHtml(item.price || 0)}" placeholder="Price" />
+      <button type="button" class="btn btn-danger" data-remove-product="${index}">Remove</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-remove-product]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.removeProduct);
+      const list = Array.isArray(state.bootstrap?.settings?.products)
+        ? state.bootstrap.settings.products
+        : [];
+      list.splice(i, 1);
+      renderProductsAdmin();
+    });
+  });
+}
+
+function renderEmployeesAdmin() {
+  const wrap = $('employeesAdminList');
+  if (!wrap) return;
+
+  const employees = Array.isArray(state.bootstrap?.settings?.employees)
+    ? state.bootstrap.settings.employees
+    : [];
+
+  if (!employees.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No employees loaded.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = employees.map((item, index) => `
+    <div class="admin-row" data-employee-row="${index}">
+      <input type="text" data-employee-name value="${escapeHtml(item.name || '')}" placeholder="Name" />
+      <input type="text" data-employee-email value="${escapeHtml(item.email || '')}" placeholder="Email" />
+      <input type="text" data-employee-role value="${escapeHtml(item.role || '')}" placeholder="Role" />
+      <button type="button" class="btn btn-danger" data-remove-employee="${index}">Remove</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-remove-employee]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.removeEmployee);
+      const list = Array.isArray(state.bootstrap?.settings?.employees)
+        ? state.bootstrap.settings.employees
+        : [];
+      list.splice(i, 1);
+      renderEmployeesAdmin();
+    });
+  });
+}
+
+function renderPaymentMethodsAdmin() {
+  const wrap = $('paymentMethodsAdminList');
+  if (!wrap) return;
+
+  const methods = Array.isArray(state.bootstrap?.settings?.paymentMethods)
+    ? state.bootstrap.settings.paymentMethods
+    : state.paymentMethods;
+
+  if (!methods.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No payment methods loaded.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = methods.map((item, index) => `
+    <div class="admin-row" data-payment-row="${index}">
+      <input type="text" data-payment-method value="${escapeHtml(item || '')}" placeholder="Method" />
+      <button type="button" class="btn btn-danger" data-remove-payment-method="${index}">Remove</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-remove-payment-method]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.removePaymentMethod);
+      const list = Array.isArray(state.bootstrap?.settings?.paymentMethods)
+        ? state.bootstrap.settings.paymentMethods
+        : state.paymentMethods;
+      list.splice(i, 1);
+      renderPaymentMethodsAdmin();
+    });
+  });
 }
 
 async function loadBootstrap() {
   const result = await api('getPortalBootstrap');
   if (result.ok === false) {
-    throw new Error(result.message || 'Could not load portal bootstrap.');
+    throw new Error(result.message || 'Could not load portal data.');
   }
 
-  state.bootstrap = result;
+  state.bootstrap = result || {};
   renderBootstrap();
+  fillPortalHeader();
 }
 
 async function loginNow() {
   if (!requireApiUrl()) return;
+
   showMessage('loginMsg', 'Signing in...', 'info');
 
   try {
-    const email = getValue('loginValue').trim() || getValue('email').trim();
-    const pin = getValue('loginPin').trim() || getValue('pin').trim();
+    const loginValue = getValue('loginValue').trim();
+    const pin = getValue('loginPin').trim();
 
-    const result = await api('login', { email, pin });
+    const result = await api('login', {
+      email: loginValue,
+      username: loginValue,
+      loginValue,
+      pin
+    });
 
     if (!result.ok) {
       showMessage('loginMsg', result.message || 'Login failed.', 'error');
@@ -355,32 +553,27 @@ async function loginNow() {
     }
 
     state.session = result;
-    state.products = result.products || [];
+    state.products = Array.isArray(result.products) ? result.products : [];
 
     await loadBootstrap();
-    fillPortalHeader();
+
+    hideEl('loginView');
+    showEl('portalView');
+
+    renderNav();
+    activateTab('dashboard');
     buildProductGrid();
     renderCart();
-    renderNav();
-
-    const loginView = $('loginView');
-    const portalView = $('portalView') || $('portal');
-
-    if (loginView) loginView.classList.add('hidden');
-    if (portalView) portalView.classList.remove('hidden');
-
-    activateTab('dashboard');
 
     await Promise.allSettled([
       loadOrders(),
       loadRaffle(),
-      loadPayroll(),
-      loadRewards(true)
+      loadPayroll()
     ]);
 
     showMessage('loginMsg', '', 'success');
   } catch (error) {
-    showMessage('loginMsg', error.message || 'Could not sign in.', 'error');
+    showMessage('loginMsg', error.message || 'Login failed.', 'error');
   }
 }
 
@@ -391,20 +584,14 @@ function logoutNow() {
   state.cart = {};
   state.activeTab = 'dashboard';
 
-  const portalView = $('portalView') || $('portal');
-  const loginView = $('loginView');
-
-  if (portalView) portalView.classList.add('hidden');
-  if (loginView) loginView.classList.remove('hidden');
+  showEl('loginView');
+  hideEl('portalView');
 
   setText('sessionStatus', 'Signed out');
   setText('sessionRole', '—');
-
-  const logoutBtn = $('logoutBtn');
-  if (logoutBtn) logoutBtn.classList.add('hidden');
+  setText('userBadge', 'Portal User');
 
   renderNav();
-  activateTab('dashboard');
 }
 
 async function submitOrder() {
@@ -427,14 +614,16 @@ async function submitOrder() {
   try {
     const payload = {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim(),
+      pin: getValue('loginPin').trim(),
       customerName: getValue('customerName').trim(),
       phoneNumber: getValue('phoneNumber').trim(),
-      items,
+      mileage: Number(getValue('mileageInput', 0) || 0),
+      amountPaid: Number(getValue('amountPaidInput', 0) || 0),
       discount: Number(getValue('discountInput', 0) || 0),
       tip: Number(getValue('tipInput', 0) || 0),
       paymentMethod: getValue('paymentMethod'),
-      notes: getValue('notes').trim()
+      notes: getValue('notes').trim(),
+      items
     };
 
     const result = await api('submitOrder', payload);
@@ -446,18 +635,22 @@ async function submitOrder() {
 
     state.cart = {};
     buildProductGrid();
-    renderCart();
 
     setValue('customerName', '');
     setValue('phoneNumber', '');
+    setValue('mileageInput', '0');
+    setValue('amountPaidInput', '0');
     setValue('discountInput', '0');
     setValue('tipInput', '0');
     setValue('notes', '');
 
+    renderCart();
     showMessage('orderMsg', result.message || 'Order submitted.', 'success');
 
-    await Promise.allSettled([loadOrders(), loadBootstrap()]);
-    fillPortalHeader();
+    await Promise.allSettled([
+      loadOrders(),
+      loadBootstrap()
+    ]);
   } catch (error) {
     showMessage('orderMsg', error.message || 'Order failed.', 'error');
   }
@@ -467,17 +660,13 @@ async function loadOrders() {
   if (!state.session) return;
 
   const list = $('ordersList');
-  if (list) {
-    list.innerHTML = '<div class="list-item"><p>Loading orders...</p></div>';
-  }
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading orders...</p></div>';
 
   try {
-    const query = getValue('orderSearchInput').trim();
-
     const result = await api('searchOrders', {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim(),
-      query
+      pin: getValue('loginPin').trim(),
+      query: getValue('orderSearchInput').trim()
     });
 
     const rows = result.results || result.orders || [];
@@ -488,10 +677,10 @@ async function loadOrders() {
       ? rows.map(row => `
           <div class="list-item">
             <h4>${escapeHtml(row.orderNumber || row['Order Number'] || 'Order')}</h4>
-            <p>${escapeHtml(row.customerName || row.CustomerName || row['Customer Name'] || 'No customer')} · ${money(row.total || row.Total || 0)}</p>
+            <p>${escapeHtml(row.customerName || row['Customer Name'] || 'No customer')} · ${money(row.total || row.Total || 0)}</p>
           </div>
         `).join('')
-      : '<div class="list-item"><p>No orders found.</p></div>';
+      : '<div class="list-item"><p>No orders loaded.</p></div>';
   } catch (error) {
     if (list) {
       list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load orders.')}</p></div>`;
@@ -505,7 +694,7 @@ async function loadRewards(silent = false) {
   const customerName = getValue('rewardCustomerName').trim() || getValue('customerName').trim();
 
   if (!customerName && !silent) {
-    showMessage('rewardsMsg', 'Enter a customer name first.', 'error');
+    showMessage('rewardsMsg', 'Enter a customer name.', 'error');
     return;
   }
 
@@ -514,7 +703,7 @@ async function loadRewards(silent = false) {
   try {
     const result = await api('lookupRewards', {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim(),
+      pin: getValue('loginPin').trim(),
       customerName
     });
 
@@ -529,9 +718,7 @@ async function loadRewards(silent = false) {
 
     if (!silent) showMessage('rewardsMsg', 'Rewards loaded.', 'success');
   } catch (error) {
-    if (!silent) {
-      showMessage('rewardsMsg', error.message || 'Could not load rewards.', 'error');
-    }
+    if (!silent) showMessage('rewardsMsg', error.message || 'Could not load rewards.', 'error');
   }
 }
 
@@ -539,14 +726,12 @@ async function loadRaffle() {
   if (!state.session) return;
 
   const list = $('raffleList');
-  if (list) {
-    list.innerHTML = '<div class="list-item"><p>Loading raffle...</p></div>';
-  }
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading raffle...</p></div>';
 
   try {
     const result = await api('loadRaffleOverview', {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim()
+      pin: getValue('loginPin').trim()
     });
 
     const rows = result.results || result.entries || [];
@@ -560,7 +745,7 @@ async function loadRaffle() {
             <p>Tickets: ${Number(row.ticketsBought || row['Tickets Bought'] || 0)}</p>
           </div>
         `).join('')
-      : '<div class="list-item"><p>No raffle entries found.</p></div>';
+      : '<div class="list-item"><p>No raffle entries loaded.</p></div>';
   } catch (error) {
     if (list) {
       list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load raffle.')}</p></div>`;
@@ -572,14 +757,12 @@ async function loadPayroll() {
   if (!state.session) return;
 
   const list = $('payrollList');
-  if (list) {
-    list.innerHTML = '<div class="list-item"><p>Loading payroll...</p></div>';
-  }
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading payroll...</p></div>';
 
   try {
     const result = await api('loadPayroll', {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim(),
+      pin: getValue('loginPin').trim(),
       startDate: getValue('payrollStartDate'),
       endDate: getValue('payrollEndDate')
     });
@@ -595,7 +778,7 @@ async function loadPayroll() {
             <p>Total Pay: ${money(row.totalPay || 0)} · Orders: ${Number(row.orders || 0)}</p>
           </div>
         `).join('')
-      : '<div class="list-item"><p>No payroll rows found.</p></div>';
+      : '<div class="list-item"><p>No payroll rows loaded.</p></div>';
   } catch (error) {
     if (list) {
       list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load payroll.')}</p></div>`;
@@ -603,18 +786,40 @@ async function loadPayroll() {
   }
 }
 
+function collectProductsAdmin() {
+  return Array.from(document.querySelectorAll('#productsAdminList [data-product-row]')).map(row => ({
+    name: row.querySelector('[data-product-name]')?.value?.trim() || '',
+    price: Number(row.querySelector('[data-product-price]')?.value || 0)
+  })).filter(item => item.name);
+}
+
+function collectEmployeesAdmin() {
+  return Array.from(document.querySelectorAll('#employeesAdminList [data-employee-row]')).map(row => ({
+    name: row.querySelector('[data-employee-name]')?.value?.trim() || '',
+    email: row.querySelector('[data-employee-email]')?.value?.trim() || '',
+    role: row.querySelector('[data-employee-role]')?.value?.trim() || ''
+  })).filter(item => item.name || item.email);
+}
+
+function collectPaymentMethodsAdmin() {
+  return Array.from(document.querySelectorAll('#paymentMethodsAdminList [data-payment-row]')).map(row => (
+    row.querySelector('[data-payment-method]')?.value?.trim() || ''
+  )).filter(Boolean);
+}
+
 async function saveSettings() {
   if (!state.session) return;
 
-  showMessage('settingsMsg', 'Saving settings...', 'info');
+  showMessage('settingsMsg', 'Saving...', 'info');
 
   try {
     const payload = {
       email: state.session.employee?.email || state.session.employee?.username || '',
-      pin: getValue('loginPin').trim() || getValue('pin').trim(),
+      pin: getValue('loginPin').trim(),
+      portalName: getValue('settingsPortalName').trim(),
+      portalSubtitle: getValue('settingsPortalSubtitle').trim(),
       announcement: getValue('settingsAnnouncement').trim(),
-      bankId: getValue('settingsBankId').trim(),
-      portalTheme: getValue('settingsTheme')
+      bankId: getValue('settingsBankId').trim()
     };
 
     const result = await api('saveSettings', payload);
@@ -623,54 +828,224 @@ async function saveSettings() {
       throw new Error(result.message || 'Could not save settings.');
     }
 
-    state.session.portalPrefs = {
-      ...(state.session.portalPrefs || {}),
-      announcement: payload.announcement,
-      bankId: payload.bankId,
-      portalTheme: payload.portalTheme
-    };
-
-    fillPortalHeader();
-    showMessage('settingsMsg', result.message || 'Settings saved.', 'success');
+    showMessage('settingsMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
   } catch (error) {
     showMessage('settingsMsg', error.message || 'Could not save settings.', 'error');
   }
 }
 
+async function saveTheme() {
+  if (!state.session) return;
+
+  showMessage('themeMsg', 'Saving...', 'info');
+
+  try {
+    const payload = {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim(),
+      theme: {
+        primary: getValue('themePrimary'),
+        primaryDark: getValue('themePrimaryDark'),
+        secondary: getValue('themeSecondary'),
+        bg: getValue('themeBg'),
+        card: getValue('themeCard'),
+        text: getValue('themeText'),
+        muted: getValue('themeMuted'),
+        border: getValue('themeBorder')
+      }
+    };
+
+    const result = await api('saveTheme', payload);
+
+    if (!result.ok) {
+      throw new Error(result.message || 'Could not save theme.');
+    }
+
+    applyTheme(payload.theme);
+    showMessage('themeMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
+  } catch (error) {
+    showMessage('themeMsg', error.message || 'Could not save theme.', 'error');
+  }
+}
+
+async function saveUIText() {
+  if (!state.session) return;
+
+  showMessage('uiTextMsg', 'Saving...', 'info');
+
+  try {
+    const payload = {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim(),
+      uiText: {
+        logoEmoji: getValue('uiLogoEmoji').trim(),
+        loginTitle: getValue('uiLoginTitle').trim(),
+        loginSubtitle: getValue('uiLoginSubtitle').trim(),
+        dashboardTitle: getValue('uiDashboardTitle').trim(),
+        dashboardSubtitle: getValue('uiDashboardSubtitle').trim(),
+        posTitle: getValue('uiPOSTitle').trim(),
+        posSubtitle: getValue('uiPOSSubtitle').trim(),
+        ordersTitle: getValue('uiOrdersTitle').trim(),
+        ordersSubtitle: getValue('uiOrdersSubtitle').trim(),
+        rewardsTitle: getValue('uiRewardsTitle').trim(),
+        rewardsSubtitle: getValue('uiRewardsSubtitle').trim(),
+        raffleTitle: getValue('uiRaffleTitle').trim(),
+        raffleSubtitle: getValue('uiRaffleSubtitle').trim(),
+        payrollTitle: getValue('uiPayrollTitle').trim(),
+        payrollSubtitle: getValue('uiPayrollSubtitle').trim(),
+        settingsTitle: getValue('uiSettingsTitle').trim(),
+        settingsSubtitle: getValue('uiSettingsSubtitle').trim()
+      }
+    };
+
+    const result = await api('saveUIText', payload);
+
+    if (!result.ok) {
+      throw new Error(result.message || 'Could not save UI text.');
+    }
+
+    showMessage('uiTextMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
+  } catch (error) {
+    showMessage('uiTextMsg', error.message || 'Could not save UI text.', 'error');
+  }
+}
+
+async function saveProducts() {
+  if (!state.session) return;
+
+  showMessage('productsMsg', 'Saving...', 'info');
+
+  try {
+    const payload = {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim(),
+      products: collectProductsAdmin()
+    };
+
+    const result = await api('saveProducts', payload);
+
+    if (!result.ok) {
+      throw new Error(result.message || 'Could not save products.');
+    }
+
+    showMessage('productsMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
+    state.products = payload.products;
+    buildProductGrid();
+    renderCart();
+  } catch (error) {
+    showMessage('productsMsg', error.message || 'Could not save products.', 'error');
+  }
+}
+
+async function saveEmployees() {
+  if (!state.session) return;
+
+  showMessage('employeesMsg', 'Saving...', 'info');
+
+  try {
+    const payload = {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim(),
+      employees: collectEmployeesAdmin()
+    };
+
+    const result = await api('saveEmployees', payload);
+
+    if (!result.ok) {
+      throw new Error(result.message || 'Could not save employees.');
+    }
+
+    showMessage('employeesMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
+  } catch (error) {
+    showMessage('employeesMsg', error.message || 'Could not save employees.', 'error');
+  }
+}
+
+async function savePaymentMethods() {
+  if (!state.session) return;
+
+  showMessage('paymentMethodsMsg', 'Saving...', 'info');
+
+  try {
+    const payload = {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim(),
+      paymentMethods: collectPaymentMethodsAdmin()
+    };
+
+    const result = await api('savePaymentMethods', payload);
+
+    if (!result.ok) {
+      throw new Error(result.message || 'Could not save payment methods.');
+    }
+
+    showMessage('paymentMethodsMsg', result.message || 'Saved.', 'success');
+    await loadBootstrap();
+  } catch (error) {
+    showMessage('paymentMethodsMsg', error.message || 'Could not save payment methods.', 'error');
+  }
+}
+
+function addProductRow() {
+  if (!state.bootstrap) state.bootstrap = {};
+  if (!state.bootstrap.settings) state.bootstrap.settings = {};
+  if (!Array.isArray(state.bootstrap.settings.products)) state.bootstrap.settings.products = [];
+  state.bootstrap.settings.products.push({ name: '', price: 0 });
+  renderProductsAdmin();
+}
+
+function addEmployeeRow() {
+  if (!state.bootstrap) state.bootstrap = {};
+  if (!state.bootstrap.settings) state.bootstrap.settings = {};
+  if (!Array.isArray(state.bootstrap.settings.employees)) state.bootstrap.settings.employees = [];
+  state.bootstrap.settings.employees.push({ name: '', email: '', role: '' });
+  renderEmployeesAdmin();
+}
+
+function addPaymentMethodRow() {
+  if (!state.bootstrap) state.bootstrap = {};
+  if (!state.bootstrap.settings) state.bootstrap.settings = {};
+  if (!Array.isArray(state.bootstrap.settings.paymentMethods)) state.bootstrap.settings.paymentMethods = [];
+  state.bootstrap.settings.paymentMethods.push('');
+  renderPaymentMethodsAdmin();
+}
+
 function setDefaultDates() {
-  const startEl = $('payrollStartDate');
-  const endEl = $('payrollEndDate');
-  if (!startEl || !endEl) return;
+  const start = $('payrollStartDate');
+  const end = $('payrollEndDate');
+  if (!start || !end) return;
 
   const today = new Date();
   const first = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  startEl.value = first.toISOString().slice(0, 10);
-  endEl.value = today.toISOString().slice(0, 10);
+  start.value = first.toISOString().slice(0, 10);
+  end.value = today.toISOString().slice(0, 10);
 }
 
 function wireEvents() {
-  const apiUrl = $('apiUrl');
-  if (apiUrl) apiUrl.value = state.apiUrl;
-
-  $('saveApiUrlBtn')?.addEventListener('click', saveApiUrl);
   $('loginBtn')?.addEventListener('click', loginNow);
   $('logoutBtn')?.addEventListener('click', logoutNow);
+
   $('submitOrderBtn')?.addEventListener('click', submitOrder);
   $('searchOrdersBtn')?.addEventListener('click', loadOrders);
   $('lookupRewardsBtn')?.addEventListener('click', () => loadRewards(false));
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
+
   $('saveSettingsBtn')?.addEventListener('click', saveSettings);
+  $('saveThemeBtn')?.addEventListener('click', saveTheme);
+  $('saveUITextBtn')?.addEventListener('click', saveUIText);
+  $('saveProductsBtn')?.addEventListener('click', saveProducts);
+  $('saveEmployeesBtn')?.addEventListener('click', saveEmployees);
+  $('savePaymentMethodsBtn')?.addEventListener('click', savePaymentMethods);
 
-  $('discountInput')?.addEventListener('input', renderCart);
-  $('tipInput')?.addEventListener('input', renderCart);
-
-  $('demoFillBtn')?.addEventListener('click', () => {
-    if ($('loginValue')) $('loginValue').value = 'owner';
-    if ($('loginPin')) $('loginPin').value = '1234';
-    if ($('email')) $('email').value = 'owner';
-    if ($('pin')) $('pin').value = '1234';
-  });
+  $('addProductRowBtn')?.addEventListener('click', addProductRow);
+  $('addEmployeeRowBtn')?.addEventListener('click', addEmployeeRow);
+  $('addPaymentMethodRowBtn')?.addEventListener('click', addPaymentMethodRow);
 
   $('loginValue')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') loginNow();
@@ -680,20 +1055,18 @@ function wireEvents() {
     if (e.key === 'Enter') loginNow();
   });
 
-  $('email')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') loginNow();
-  });
-
-  $('pin')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') loginNow();
-  });
+  $('discountInput')?.addEventListener('input', renderCart);
+  $('tipInput')?.addEventListener('input', renderCart);
+  $('mileageInput')?.addEventListener('input', renderCart);
+  $('amountPaidInput')?.addEventListener('input', renderCart);
 }
 
 function init() {
   renderNav();
   wireEvents();
   setDefaultDates();
-  activateTab(state.activeTab);
+  activateTab('dashboard');
+  renderCart();
 }
 
 init();
