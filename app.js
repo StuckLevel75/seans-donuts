@@ -1,380 +1,894 @@
-var SD = {
-  SHEETS: {
-    SETTINGS: 'Settings',
-    EMPLOYEES: 'Employees',
-    PRODUCTS: 'Products',
-    ORDERS: 'Orders',
-    ORDER_ITEMS: 'Order Items',
-    REWARDS: 'Rewards',
-    RAFFLE: 'Raffle',
-    RAFFLE_WINNER: 'Raffle Winner',
-    PAYROLL: 'Payroll',
-    ANNOUNCEMENTS: 'Announcements',
-    THEME: 'Theme',
-    UI_TEXT: 'UI Text',
-    PAYMENT_METHODS: 'Payment Methods'
-  },
-
-  DEFAULTS: {
-    PORTAL_NAME: "Sean's Donuts",
-    PORTAL_SUBTITLE: "Employee Portal",
-    BANK_ID: "24596194",
-    ORDER_PREFIX: "SD-",
-    ANNOUNCEMENT: "Welcome to Sean's Donuts Portal",
-    LOGO_EMOJI: "🍩",
-    THEME: {
-      primary: "#f28c18",
-      primaryDark: "#de7c0c",
-      secondary: "#6c4330",
-      bg: "#fdf4ea",
-      card: "#ffffff",
-      text: "#4a2e22",
-      muted: "#8a6a5a",
-      border: "#edc9a5"
-    }
-  }
+const state = {
+  apiUrl: localStorage.getItem('sd_api_url') || '',
+  session: null,
+  bootstrap: null,
+  products: [],
+  cart: {},
+  paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
+  activeTab: 'dashboard',
+  raffleEntries: [],
+  raffleWheelEntries: [],
+  raffleWinner: null,
+  wheelRotation: 0,
+  wheelSpinning: false
 };
 
-function sdSS_() {
-  return SpreadsheetApp.getActiveSpreadsheet();
+const tabs = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'pos', label: 'POS' },
+  { key: 'orders', label: 'Orders' },
+  { key: 'rewards', label: 'Rewards' },
+  { key: 'raffle', label: 'Raffle' },
+  { key: 'payroll', label: 'Payroll' },
+  { key: 'settings', label: 'Settings', ownerOnly: true }
+];
+
+function $(id) {
+  return document.getElementById(id);
 }
 
-function sdTrim_(value) {
-  return String(value == null ? '' : value).trim();
+function money(v) {
+  return `$${Number(v || 0).toFixed(2)}`;
 }
 
-function sdLower_(value) {
-  return sdTrim_(value).toLowerCase();
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-function sdNum_(value) {
-  var n = Number(value);
-  return isNaN(n) ? 0 : n;
+function showMessage(elId, text, type) {
+  const el = $(elId);
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = text ? `message show ${type || 'info'}` : 'message';
 }
 
-function sdBool_(value) {
-  var v = sdLower_(value);
-  return v === 'yes' || v === 'true' || v === '1' || v === 'active';
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.textContent = value == null ? '' : String(value);
 }
 
-function sdJson_(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value == null ? '' : String(value);
 }
 
-function sdReadBody_(e) {
-  try {
-    if (!e || !e.postData || !e.postData.contents) return {};
-    return JSON.parse(e.postData.contents);
-  } catch (err) {
-    return {};
+function getValue(id, fallback) {
+  const el = $(id);
+  return el ? el.value : (fallback || '');
+}
+
+function showEl(id) {
+  const el = $(id);
+  if (el) el.classList.remove('hidden');
+}
+
+function hideEl(id) {
+  const el = $(id);
+  if (el) el.classList.add('hidden');
+}
+
+function requireApiUrl() {
+  if (!state.apiUrl) {
+    showMessage('loginMsg', 'Paste your Apps Script Web App URL first.', 'error');
+    return false;
   }
+  return true;
 }
 
-function sdGetOrCreateSheet_(name, headers) {
-  var ss = sdSS_();
-  var sh = ss.getSheetByName(name);
+async function api(action, payload) {
+  if (!state.apiUrl) throw new Error('Missing API URL.');
 
-  if (!sh) sh = ss.insertSheet(name);
+  const response = await fetch(state.apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: action, payload: payload || {} })
+  });
 
-  if (headers && headers.length) {
-    var needsHeaders = false;
-
-    if (sh.getLastRow() === 0 || sh.getLastColumn() === 0) {
-      needsHeaders = true;
-    } else {
-      var current = sh.getRange(1, 1, 1, headers.length).getValues()[0];
-      if (current.join('|') !== headers.join('|')) {
-        needsHeaders = true;
-      }
-    }
-
-    if (needsHeaders) {
-      sh.clear();
-      sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-      sh.setFrozenRows(1);
-    }
-  }
-
-  return sh;
-}
-
-function sdSheetRows_(name) {
-  var sh = sdSS_().getSheetByName(name);
-  if (!sh) return [];
-
-  var values = sh.getDataRange().getValues();
-  if (!values.length) return [];
-
-  var headers = values[0];
-  var rows = [];
-
-  for (var i = 1; i < values.length; i++) {
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      obj[String(headers[j]).trim()] = values[i][j];
-    }
-    rows.push(obj);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
   }
 
-  return rows;
+  return await response.json();
 }
 
-function sdAppendRow_(sheetName, row) {
-  var sh = sdSS_().getSheetByName(sheetName);
-  if (!sh) throw new Error('Missing sheet: ' + sheetName);
-  sh.appendRow(row);
+function getRole() {
+  return String((state.session && state.session.employee && state.session.employee.role) || '').trim().toLowerCase();
 }
 
-function sdSettingsMap_() {
-  var rows = sdSheetRows_(SD.SHEETS.SETTINGS);
-  var map = {};
-  for (var i = 0; i < rows.length; i++) {
-    var key = sdTrim_(rows[i].Key);
-    if (key) map[key] = rows[i].Value;
-  }
-  return map;
+function getPerms() {
+  return (state.session && state.session.permissions) || {};
 }
 
-function sdSetSetting_(key, value, type) {
-  var sh = sdSS_().getSheetByName(SD.SHEETS.SETTINGS);
-  if (!sh) throw new Error('Settings sheet missing.');
-
-  var data = sh.getDataRange().getValues();
-
-  if (!data.length) {
-    sh.appendRow(['Key', 'Value', 'Type']);
-    sh.appendRow([key, value, type || '']);
-    return;
-  }
-
-  for (var i = 1; i < data.length; i++) {
-    if (sdTrim_(data[i][0]) === key) {
-      sh.getRange(i + 1, 2).setValue(value);
-      if (type != null) sh.getRange(i + 1, 3).setValue(type);
-      return;
-    }
-  }
-
-  sh.appendRow([key, value, type || '']);
+function isOwnerLike() {
+  const perms = getPerms();
+  const role = getRole();
+  return !!(perms.isOwner || perms.isAdmin || role === 'owner' || role === 'admin');
 }
 
-function sdKeyValueMap_(sheetName, keyField, valueField) {
-  var rows = sdSheetRows_(sheetName);
-  var map = {};
-  for (var i = 0; i < rows.length; i++) {
-    var key = sdTrim_(rows[i][keyField]);
-    if (key) map[key] = rows[i][valueField];
-  }
-  return map;
+function getVisibleTabs() {
+  if (!state.session) return tabs.filter(tab => !tab.ownerOnly);
+  return tabs.filter(tab => !tab.ownerOnly || isOwnerLike());
 }
 
-function sdThemeMap_() {
-  var map = sdKeyValueMap_(SD.SHEETS.THEME, 'Key', 'Value');
-  return {
-    primary: sdTrim_(map.primary || SD.DEFAULTS.THEME.primary),
-    primaryDark: sdTrim_(map.primaryDark || SD.DEFAULTS.THEME.primaryDark),
-    secondary: sdTrim_(map.secondary || SD.DEFAULTS.THEME.secondary),
-    bg: sdTrim_(map.bg || SD.DEFAULTS.THEME.bg),
-    card: sdTrim_(map.card || SD.DEFAULTS.THEME.card),
-    text: sdTrim_(map.text || SD.DEFAULTS.THEME.text),
-    muted: sdTrim_(map.muted || SD.DEFAULTS.THEME.muted),
-    border: sdTrim_(map.border || SD.DEFAULTS.THEME.border)
-  };
-}
+function renderNav() {
+  const nav = $('navTabs');
+  if (!nav) return;
 
-function sdUITextMap_() {
-  var map = sdKeyValueMap_(SD.SHEETS.UI_TEXT, 'Key', 'Value');
-  return {
-    loginTitle: sdTrim_(map.loginTitle || "Sean's Donuts Portal"),
-    loginSubtitle: sdTrim_(map.loginSubtitle || "Sign in with your username or email and PIN."),
-    dashboardTitle: sdTrim_(map.dashboardTitle || "Welcome"),
-    dashboardSubtitle: sdTrim_(map.dashboardSubtitle || "Portal overview"),
-    posTitle: sdTrim_(map.posTitle || "POS"),
-    posSubtitle: sdTrim_(map.posSubtitle || "Create a new order"),
-    ordersTitle: sdTrim_(map.ordersTitle || "Orders"),
-    ordersSubtitle: sdTrim_(map.ordersSubtitle || "Search recent orders"),
-    rewardsTitle: sdTrim_(map.rewardsTitle || "Rewards"),
-    rewardsSubtitle: sdTrim_(map.rewardsSubtitle || "Lookup customer rewards"),
-    raffleTitle: sdTrim_(map.raffleTitle || "Raffle"),
-    raffleSubtitle: sdTrim_(map.raffleSubtitle || "Recent raffle entries"),
-    payrollTitle: sdTrim_(map.payrollTitle || "Payroll"),
-    payrollSubtitle: sdTrim_(map.payrollSubtitle || "View payroll rows"),
-    settingsTitle: sdTrim_(map.settingsTitle || "Settings"),
-    settingsSubtitle: sdTrim_(map.settingsSubtitle || "Owner/Admin controls"),
-    logoEmoji: sdTrim_(map.logoEmoji || SD.DEFAULTS.LOGO_EMOJI)
-  };
-}
+  let visibleTabs = getVisibleTabs();
+  if (!visibleTabs.length) visibleTabs = tabs.filter(tab => !tab.ownerOnly);
 
-function sdPaymentMethods_() {
-  var rows = sdSheetRows_(SD.SHEETS.PAYMENT_METHODS);
-  var methods = [];
+  const hasActive = visibleTabs.some(tab => tab.key === state.activeTab);
+  if (!hasActive) state.activeTab = visibleTabs[0] ? visibleTabs[0].key : 'dashboard';
 
-  for (var i = 0; i < rows.length; i++) {
-    if (!sdBool_(rows[i].Active || 'Yes')) continue;
-    var name = sdTrim_(rows[i].Name);
-    if (name) methods.push(name);
-  }
+  nav.innerHTML = visibleTabs.map(tab => {
+    return `
+      <button
+        type="button"
+        class="nav-btn ${state.activeTab === tab.key ? 'active' : ''}"
+        data-tab="${escapeHtml(tab.key)}"
+      >
+        ${escapeHtml(tab.label)}
+      </button>
+    `;
+  }).join('');
 
-  if (!methods.length) methods = ['Cash', 'Invoice', 'Bank ID'];
-  return methods;
-}
-
-function sdGetProducts_() {
-  var rows = sdSheetRows_(SD.SHEETS.PRODUCTS);
-  var products = [];
-
-  for (var i = 0; i < rows.length; i++) {
-    if (!sdBool_(rows[i].Active || 'Yes')) continue;
-
-    var name = sdTrim_(rows[i].Name);
-    if (!name) continue;
-
-    products.push({
-      name: name,
-      price: sdNum_(rows[i].Price)
+  const buttons = nav.querySelectorAll('[data-tab]');
+  for (let i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener('click', function () {
+      activateTab(this.dataset.tab);
     });
   }
-
-  return products;
 }
 
-function sdFindEmployee_(loginValue, pin) {
-  var rows = sdSheetRows_(SD.SHEETS.EMPLOYEES);
-  var login = sdLower_(loginValue);
-  var pinText = sdTrim_(pin);
+function activateTab(tabKey) {
+  const visibleTabs = getVisibleTabs();
+  const allowed = visibleTabs.some(tab => tab.key === tabKey);
+  state.activeTab = allowed ? tabKey : ((visibleTabs[0] && visibleTabs[0].key) || 'dashboard');
 
-  for (var i = 0; i < rows.length; i++) {
-    var row = rows[i];
-    if (!sdBool_(row.Active || 'Yes')) continue;
+  renderNav();
 
-    var email = sdLower_(row.Email);
-    var username = sdLower_(row.Username);
-    var savedPin = sdTrim_(row.PIN);
-
-    if (savedPin === pinText && (email === login || username === login)) {
-      return row;
-    }
-  }
-
-  return null;
-}
-
-function sdRolePermissions_(roleValue) {
-  var role = sdLower_(roleValue);
-
-  var perms = {
-    role: roleValue || 'Employee',
-    canViewDashboard: true,
-    canUsePOS: true,
-    canViewOrders: false,
-    canViewRewards: false,
-    canViewRaffle: false,
-    canViewPayroll: false,
-    canViewSettings: false,
-    canOverrideCheckout: false,
-    canSaveSettings: false,
-    canManageProducts: false,
-    canManageEmployees: false,
-    canManageTheme: false,
-    canManageUIText: false,
-    canManagePaymentMethods: false
+  const sectionMap = {
+    dashboard: 'dashboardSection',
+    pos: 'posSection',
+    orders: 'ordersSection',
+    rewards: 'rewardsSection',
+    raffle: 'raffleSection',
+    payroll: 'payrollSection',
+    settings: 'settingsSection'
   };
 
-  if (role === 'owner') {
-    perms.canViewOrders = true;
-    perms.canViewRewards = true;
-    perms.canViewRaffle = true;
-    perms.canViewPayroll = true;
-    perms.canViewSettings = true;
-    perms.canOverrideCheckout = true;
-    perms.canSaveSettings = true;
-    perms.canManageProducts = true;
-    perms.canManageEmployees = true;
-    perms.canManageTheme = true;
-    perms.canManageUIText = true;
-    perms.canManagePaymentMethods = true;
-    return perms;
-  }
+  Object.keys(sectionMap).forEach(function (key) {
+    const el = $(sectionMap[key]);
+    if (el) el.classList.add('hidden');
+  });
 
-  if (role === 'admin') {
-    perms.canViewOrders = true;
-    perms.canViewRewards = true;
-    perms.canViewRaffle = true;
-    perms.canViewPayroll = true;
-    perms.canViewSettings = true;
-    perms.canOverrideCheckout = true;
-    perms.canSaveSettings = true;
-    perms.canManageProducts = true;
-    perms.canManageEmployees = true;
-    perms.canManageTheme = true;
-    perms.canManageUIText = true;
-    perms.canManagePaymentMethods = true;
-    return perms;
-  }
+  const active = $(sectionMap[state.activeTab]);
+  if (active) active.classList.remove('hidden');
 
-  if (role === 'manager') {
-    perms.canViewOrders = true;
-    perms.canViewRewards = true;
-    perms.canViewRaffle = true;
-    perms.canViewPayroll = true;
-    return perms;
+  if (state.activeTab === 'raffle') {
+    drawRaffleWheel(state.raffleWheelEntries);
   }
-
-  if (role === 'senior employee') {
-    perms.canViewOrders = true;
-    perms.canViewRewards = true;
-    perms.canViewRaffle = true;
-    return perms;
-  }
-
-  if (role === 'employee') {
-    perms.canViewRewards = true;
-    perms.canViewRaffle = true;
-    return perms;
-  }
-
-  return perms;
 }
 
-function sdRequirePermission_(employee, permissionKey) {
-  if (!employee) return { ok: false, message: 'Unauthorized.' };
-  var perms = sdRolePermissions_(employee.Role);
-  if (!perms[permissionKey]) return { ok: false, message: 'You do not have permission for that.' };
-  return { ok: true, permissions: perms };
+function updateOwnerUI() {
+  if (isOwnerLike()) showEl('ownerOverrideBox');
+  else hideEl('ownerOverrideBox');
 }
 
-function sdUpsertKeyValue_(sheetName, key, value) {
-  var sh = sdSS_().getSheetByName(sheetName);
-  if (!sh) throw new Error('Missing sheet: ' + sheetName);
+function buildProductGrid() {
+  const grid = $('productGrid');
+  if (!grid) return;
 
-  var data = sh.getDataRange().getValues();
-  if (data.length <= 1) {
-    sh.appendRow([key, value]);
+  if (!Array.isArray(state.products) || !state.products.length) {
+    grid.innerHTML = '<div class="list-item"><p>No products yet.</p></div>';
     return;
   }
 
-  for (var i = 1; i < data.length; i++) {
-    if (sdTrim_(data[i][0]) === key) {
-      sh.getRange(i + 1, 2).setValue(value);
-      return;
+  grid.innerHTML = state.products.map(function (product, index) {
+    const qty = Number(state.cart[product.name] || 0);
+    return `
+      <div class="product-card">
+        <h4>${escapeHtml(product.name || 'Product')}</h4>
+        <div class="product-price">${money(product.price || 0)}</div>
+        <div class="qty-row">
+          <button type="button" data-qty="down" data-index="${index}">−</button>
+          <div class="qty-pill">${qty}</div>
+          <button type="button" data-qty="up" data-index="${index}">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const buttons = grid.querySelectorAll('[data-qty]');
+  for (let i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener('click', function () {
+      const product = state.products[Number(this.dataset.index)];
+      if (!product) return;
+
+      const current = Number(state.cart[product.name] || 0);
+      const next = this.dataset.qty === 'up' ? current + 1 : Math.max(0, current - 1);
+
+      if (next <= 0) delete state.cart[product.name];
+      else state.cart[product.name] = next;
+
+      buildProductGrid();
+      renderCart();
+    });
+  }
+}
+
+function renderCart() {
+  const list = $('cartList');
+  if (!list) return;
+
+  const items = Object.keys(state.cart).filter(function (name) {
+    return Number(state.cart[name]) > 0;
+  }).map(function (name) {
+    const product = state.products.find(function (p) { return p.name === name; }) || {};
+    const qty = Number(state.cart[name] || 0);
+    const price = Number(product.price || 0);
+    return {
+      name: name,
+      qty: qty,
+      price: price,
+      total: qty * price
+    };
+  });
+
+  if (!items.length) {
+    list.innerHTML = '<div class="list-item"><p>Empty cart</p></div>';
+  } else {
+    list.innerHTML = items.map(function (item) {
+      return `
+        <div class="list-item">
+          <h4>${escapeHtml(item.name)}</h4>
+          <p>${item.qty} × ${money(item.price)} = <strong>${money(item.total)}</strong></p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const subtotal = items.reduce(function (sum, item) { return sum + item.total; }, 0);
+  const mileage = Number(getValue('mileageInput', 0) || 0);
+  const amountPaid = Number(getValue('amountPaidInput', 0) || 0);
+  const discount = Number(getValue('discountInput', 0) || 0);
+  const tip = Number(getValue('tipInput', 0) || 0);
+  const total = Math.max(0, subtotal + mileage - discount + tip);
+
+  setText('subtotalText', money(subtotal));
+  setText('mileageText', money(mileage));
+  setText('discountText', money(discount));
+  setText('tipText', money(tip));
+  setText('amountPaidText', money(amountPaid));
+  setText('totalText', money(total));
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (!root || !theme) return;
+
+  if (theme.primary) root.style.setProperty('--primary', theme.primary);
+  if (theme.primaryDark) root.style.setProperty('--primary-dark', theme.primaryDark);
+  if (theme.secondary) root.style.setProperty('--secondary', theme.secondary);
+  if (theme.bg) root.style.setProperty('--bg', theme.bg);
+  if (theme.card) root.style.setProperty('--card', theme.card);
+  if (theme.text) root.style.setProperty('--text', theme.text);
+  if (theme.muted) root.style.setProperty('--muted', theme.muted);
+  if (theme.border) root.style.setProperty('--border', theme.border);
+}
+
+function fillPortalHeader() {
+  const settings = (state.bootstrap && state.bootstrap.settings) || {};
+  const ui = settings.uiText || {};
+  const theme = settings.theme || {};
+  const prefs = (state.session && state.session.portalPrefs) || {};
+  const employee = (state.session && state.session.employee) || {};
+
+  const portalName = settings.portalName || "Sean's Donuts";
+  const portalSubtitle = settings.portalSubtitle || 'Employee Portal';
+  const announcement = prefs.announcement || settings.announcement || settings.dashboardMessage || "Welcome to Sean's Donuts Portal";
+  const bankId = prefs.bankId || settings.bankId || '24596194';
+  const logoEmoji = ui.logoEmoji || settings.logoEmoji || '🍩';
+
+  setText('portalName', portalName);
+  setText('portalSubtitle', portalSubtitle);
+  setText('announcementBar', announcement);
+  setText('bankIdText', bankId);
+  setText('sessionStatus', state.session ? 'Signed in' : 'Signed out');
+  setText('sessionRole', employee.role || 'Employee');
+  setText('userBadge', `${employee.name || 'Portal User'}${employee.role ? ` · ${employee.role}` : ''}`);
+  setText('welcomeTitle', `Welcome, ${employee.name || 'Employee'}`);
+
+  setText('dashboardPortalName', portalName);
+  setText('dashboardPortalSubtitle', portalSubtitle);
+  setText('dashboardBankId', bankId);
+
+  setText('loginTitle', ui.loginTitle || portalName);
+  setText('loginSubtitle', ui.loginSubtitle || 'Sign in with your username or email and PIN.');
+
+  applyTheme(theme);
+  updateOwnerUI();
+}
+
+function expandRaffleWheelEntries(entries) {
+  const expanded = [];
+  (entries || []).forEach(function (entry) {
+    const qty = Math.max(1, Number(entry.ticketsBought || entry['Tickets Bought'] || 0));
+    for (let i = 0; i < qty; i++) {
+      expanded.push({
+        customerName: entry.customerName || entry['Customer Name'] || '',
+        customerDiscord: entry.customerDiscord || entry['Customer Discord'] || '',
+        phoneNumber: entry.phoneNumber || entry['Phone Number'] || '',
+        ticketsBought: entry.ticketsBought || entry['Tickets Bought'] || 0,
+        orderNumber: entry.orderNumber || entry['Order Number'] || '',
+        _sourceOrderNumber: entry.orderNumber || entry['Order Number'] || '',
+        _sourceCustomerName: entry.customerName || entry['Customer Name'] || ''
+      });
+    }
+  });
+  return expanded;
+}
+
+function renderRaffleWinner() {
+  const box = $('raffleWinnerBox');
+  if (!box) return;
+
+  const winner = state.raffleWinner;
+  if (!winner) {
+    box.innerHTML = '<div class="list-item"><p>No winner drawn yet.</p></div>';
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="list-item">
+      <h4>${escapeHtml(winner.customerName || 'Winner')}</h4>
+      <p><strong>Discord:</strong> ${escapeHtml(winner.customerDiscord || '—')}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(winner.phoneNumber || '—')}</p>
+      <p><strong>Tickets:</strong> ${Number(winner.ticketsBought || 0)}</p>
+      <p><strong>Order:</strong> ${escapeHtml(winner.orderNumber || '—')}</p>
+    </div>
+  `;
+}
+
+function drawRaffleWheel(entries) {
+  const canvas = $('raffleWheel');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = 130;
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (!entries || !entries.length) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#f5e5d5';
+    ctx.fill();
+    ctx.strokeStyle = '#6c4330';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#6c4330';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No Entries', cx, cy + 6);
+    return;
+  }
+
+  const anglePer = (Math.PI * 2) / entries.length;
+  const rotation = state.wheelRotation || 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const start = rotation + (i * anglePer);
+    const end = start + anglePer;
+    const label = String(entries[i].customerName || `Entry ${i + 1}`);
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#f28c18' : '#6c4330';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + anglePer / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(label.slice(0, 14), radius - 10, 4);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#6c4330';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius - 14);
+  ctx.lineTo(cx - 12, cy - radius + 10);
+  ctx.lineTo(cx + 12, cy - radius + 10);
+  ctx.closePath();
+  ctx.fillStyle = '#c7372f';
+  ctx.fill();
+}
+
+function animateWheelToWinner(entries, winner) {
+  if (!entries.length || !winner) return;
+
+  const index = entries.findIndex(function (entry) {
+    return String(entry._sourceOrderNumber || entry.orderNumber || '') === String(winner.orderNumber || '') &&
+      String(entry._sourceCustomerName || entry.customerName || '') === String(winner.customerName || '');
+  });
+
+  if (index < 0) {
+    drawRaffleWheel(entries);
+    return;
+  }
+
+  const anglePer = (Math.PI * 2) / entries.length;
+  const targetAngle = -(index * anglePer) - (anglePer / 2) - (Math.PI / 2);
+  const startRotation = state.wheelRotation || 0;
+  const finalRotation = targetAngle - (Math.PI * 8);
+  const duration = 3500;
+  const startTime = performance.now();
+
+  state.wheelSpinning = true;
+
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    state.wheelRotation = startRotation + ((finalRotation - startRotation) * eased);
+    drawRaffleWheel(entries);
+
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      state.wheelSpinning = false;
+      state.wheelRotation = finalRotation;
+      drawRaffleWheel(entries);
     }
   }
 
-  sh.appendRow([key, value]);
+  requestAnimationFrame(step);
 }
 
-function sdReplaceSheetData_(sheetName, headers, rows) {
-  var sh = sdSS_().getSheetByName(sheetName);
-  if (!sh) throw new Error('Missing sheet: ' + sheetName);
+function renderBootstrap() {
+  const stats = (state.bootstrap && state.bootstrap.stats) || {};
+  const announcements = (state.bootstrap && state.bootstrap.announcements) || [];
+  const settings = (state.bootstrap && state.bootstrap.settings) || {};
 
-  sh.clearContents();
-  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  setText('statOrders', Number(stats.totalOrders || 0));
+  setText('statSales', money(stats.totalSales || 0));
+  setText('statEmployees', Number(stats.activeEmployees || 0));
+  setText('statRaffle', Number(stats.raffleEntries || 0));
 
-  if (rows && rows.length) {
-    sh.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  const announcementsList = $('announcementsList');
+  if (announcementsList) {
+    announcementsList.innerHTML = announcements.length ? announcements.map(function (item) {
+      return `
+        <div class="list-item">
+          <h4>${escapeHtml(item.title || 'Announcement')}</h4>
+          <p>${escapeHtml(item.message || '')}</p>
+        </div>
+      `;
+    }).join('') : '<div class="list-item"><p>No active announcements.</p></div>';
   }
 
-  sh.setFrozenRows(1);
+  const methods = Array.isArray(settings.paymentMethods) && settings.paymentMethods.length
+    ? settings.paymentMethods
+    : state.paymentMethods;
+
+  state.paymentMethods = methods;
+
+  const paymentMethod = $('paymentMethod');
+  if (paymentMethod) {
+    paymentMethod.innerHTML = methods.map(function (method) {
+      const value = method.Name || method.name || method;
+      return `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`;
+    }).join('');
+  }
 }
+
+async function loadBootstrap() {
+  const result = await api('getPortalBootstrap');
+
+  if (result.ok === false) {
+    throw new Error(result.message || 'Could not load portal data.');
+  }
+
+  state.bootstrap = result || {};
+  renderBootstrap();
+  fillPortalHeader();
+}
+
+async function loginNow() {
+  if (!requireApiUrl()) return;
+
+  showMessage('loginMsg', 'Signing in...', 'info');
+
+  try {
+    const loginValue = getValue('loginValue').trim();
+    const pin = getValue('loginPin').trim();
+
+    const result = await api('login', {
+      email: loginValue,
+      username: loginValue,
+      loginValue: loginValue,
+      pin: pin
+    });
+
+    if (!result.ok) {
+      showMessage('loginMsg', result.message || 'Login failed.', 'error');
+      return;
+    }
+
+    state.session = result;
+    state.products = Array.isArray(result.products) ? result.products : [];
+
+    await loadBootstrap();
+
+    hideEl('loginView');
+    showEl('portalView');
+
+    renderNav();
+    activateTab('dashboard');
+    buildProductGrid();
+    renderCart();
+
+    await Promise.allSettled([
+      loadOrders(),
+      loadRaffle(),
+      loadPayroll()
+    ]);
+
+    showMessage('loginMsg', '', 'success');
+  } catch (error) {
+    showMessage('loginMsg', error.message || 'Login failed.', 'error');
+  }
+}
+
+function logoutNow() {
+  state.session = null;
+  state.bootstrap = null;
+  state.products = [];
+  state.cart = {};
+  state.activeTab = 'dashboard';
+  state.raffleEntries = [];
+  state.raffleWheelEntries = [];
+  state.raffleWinner = null;
+  state.wheelRotation = 0;
+
+  showEl('loginView');
+  hideEl('portalView');
+
+  setText('sessionStatus', 'Signed out');
+  setText('sessionRole', '—');
+  setText('userBadge', 'Portal User');
+
+  renderNav();
+  activateTab('dashboard');
+}
+
+function hasRaffleTicketInCart() {
+  return Object.keys(state.cart).some(function (name) {
+    return String(name).trim().toLowerCase() === 'raffle ticket' && Number(state.cart[name]) > 0;
+  });
+}
+
+async function submitOrder() {
+  if (!state.session) return;
+
+  const items = Object.keys(state.cart)
+    .filter(function (name) { return Number(state.cart[name]) > 0; })
+    .map(function (name) {
+      return { name: name, qty: Number(state.cart[name]) };
+    });
+
+  if (!items.length) {
+    showMessage('orderMsg', 'Add at least one product.', 'error');
+    return;
+  }
+
+  const customerName = getValue('customerName').trim();
+  const customerDiscord = getValue('customerDiscord').trim();
+  const phoneNumber = getValue('phoneNumber').trim();
+
+  if (hasRaffleTicketInCart() && (!customerName || !customerDiscord || !phoneNumber)) {
+    showMessage('orderMsg', 'Raffle ticket orders require customer name, Discord, and phone number.', 'error');
+    return;
+  }
+
+  showMessage('orderMsg', 'Submitting order...', 'info');
+
+  try {
+    const payload = {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim(),
+      customerName: customerName,
+      customerDiscord: customerDiscord,
+      phoneNumber: phoneNumber,
+      mileage: Number(getValue('mileageInput', 0) || 0),
+      amountPaid: Number(getValue('amountPaidInput', 0) || 0),
+      discount: Number(getValue('discountInput', 0) || 0),
+      tip: Number(getValue('tipInput', 0) || 0),
+      paymentMethod: getValue('paymentMethod'),
+      notes: getValue('notes').trim(),
+      items: items
+    };
+
+    const result = await api('submitOrder', payload);
+
+    if (!result.ok) {
+      showMessage('orderMsg', result.message || 'Order failed.', 'error');
+      return;
+    }
+
+    state.cart = {};
+    buildProductGrid();
+
+    setValue('customerName', '');
+    setValue('customerDiscord', '');
+    setValue('phoneNumber', '');
+    setValue('mileageInput', '0');
+    setValue('amountPaidInput', '0');
+    setValue('discountInput', '0');
+    setValue('tipInput', '0');
+    setValue('notes', '');
+
+    renderCart();
+    showMessage('orderMsg', result.message || 'Order submitted.', 'success');
+
+    await Promise.allSettled([loadOrders(), loadBootstrap(), loadRaffle()]);
+  } catch (error) {
+    showMessage('orderMsg', error.message || 'Order failed.', 'error');
+  }
+}
+
+async function loadOrders() {
+  if (!state.session) return;
+
+  const list = $('ordersList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading orders...</p></div>';
+
+  try {
+    const result = await api('searchOrders', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim(),
+      query: getValue('orderSearchInput').trim()
+    });
+
+    const rows = result.results || result.orders || [];
+    if (!list) return;
+
+    list.innerHTML = rows.length ? rows.map(function (row) {
+      return `
+        <div class="list-item">
+          <h4>${escapeHtml(row.orderNumber || row['Order Number'] || 'Order')}</h4>
+          <p>${escapeHtml(row.customerName || row['Customer Name'] || 'No customer')} · ${money(row.total || row.Total || 0)}</p>
+        </div>
+      `;
+    }).join('') : '<div class="list-item"><p>No orders loaded.</p></div>';
+  } catch (error) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load orders.')}</p></div>`;
+  }
+}
+
+async function loadRewards(silent) {
+  if (!state.session) return;
+
+  const customerName = getValue('rewardCustomerName').trim() || getValue('customerName').trim();
+
+  if (!customerName && !silent) {
+    showMessage('rewardsMsg', 'Enter a customer name.', 'error');
+    return;
+  }
+
+  if (!silent) showMessage('rewardsMsg', 'Loading rewards...', 'info');
+
+  try {
+    const result = await api('lookupRewards', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim(),
+      customerName: customerName
+    });
+
+    const data = result.reward || result.rewards || result || {};
+
+    setText('rewardVisits', Number(data.visits || 0));
+    setText('rewardProgress', `${Number(data.visitProgress || 0)} / 10`);
+    setText('rewardAvailable', Number(data.rewardsAvailable || 0));
+    setText('rewardRedeemed', Number(data.totalRewardsRedeemed || 0));
+    setText('rewardLastVisit', data.lastVisit || '—');
+    setText('rewardLastOrder', data.lastOrderNumber || '—');
+
+    if (!silent) showMessage('rewardsMsg', 'Rewards loaded.', 'success');
+  } catch (error) {
+    if (!silent) showMessage('rewardsMsg', error.message || 'Could not load rewards.', 'error');
+  }
+}
+
+async function loadRaffle() {
+  if (!state.session) return;
+
+  const list = $('raffleList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading raffle...</p></div>';
+
+  try {
+    const result = await api('loadRaffleOverview', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim()
+    });
+
+    const rows = result.entries || result.results || [];
+    state.raffleEntries = rows;
+    state.raffleWheelEntries = expandRaffleWheelEntries(rows);
+    state.raffleWinner = result.winner || null;
+
+    renderRaffleWinner();
+    drawRaffleWheel(state.raffleWheelEntries);
+
+    if (!list) return;
+
+    list.innerHTML = rows.length ? rows.map(function (row) {
+      return `
+        <div class="list-item">
+          <h4>${escapeHtml(row.customerName || 'Entry')}</h4>
+          <p><strong>Discord:</strong> ${escapeHtml(row.customerDiscord || '—')}</p>
+          <p><strong>Phone:</strong> ${escapeHtml(row.phoneNumber || '—')}</p>
+          <p><strong>Tickets:</strong> ${Number(row.ticketsBought || 0)}</p>
+          <p><strong>Order:</strong> ${escapeHtml(row.orderNumber || '—')}</p>
+        </div>
+      `;
+    }).join('') : '<div class="list-item"><p>No raffle entries loaded.</p></div>';
+  } catch (error) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load raffle.')}</p></div>`;
+  }
+}
+
+async function drawRaffleWinnerNow() {
+  if (!state.session || state.wheelSpinning) return;
+
+  showMessage('raffleMsg', 'Drawing winner...', 'info');
+
+  try {
+    const result = await api('drawRaffleWinner', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim()
+    });
+
+    if (!result.ok) {
+      showMessage('raffleMsg', result.message || 'Could not draw winner.', 'error');
+      return;
+    }
+
+    state.raffleWinner = result.winner || null;
+    renderRaffleWinner();
+
+    if (state.raffleWheelEntries.length && state.raffleWinner) {
+      animateWheelToWinner(state.raffleWheelEntries, state.raffleWinner);
+    }
+
+    showMessage('raffleMsg', result.message || 'Winner drawn.', 'success');
+  } catch (error) {
+    showMessage('raffleMsg', error.message || 'Could not draw winner.', 'error');
+  }
+}
+
+async function clearRaffleWinnerNow() {
+  if (!state.session) return;
+
+  showMessage('raffleMsg', 'Clearing winner...', 'info');
+
+  try {
+    const result = await api('clearRaffleWinner', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim()
+    });
+
+    if (!result.ok) {
+      showMessage('raffleMsg', result.message || 'Could not clear winner.', 'error');
+      return;
+    }
+
+    state.raffleWinner = null;
+    renderRaffleWinner();
+    showMessage('raffleMsg', result.message || 'Winner cleared.', 'success');
+  } catch (error) {
+    showMessage('raffleMsg', error.message || 'Could not clear winner.', 'error');
+  }
+}
+
+async function loadPayroll() {
+  if (!state.session) return;
+
+  const list = $('payrollList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading payroll...</p></div>';
+
+  try {
+    const result = await api('loadPayroll', {
+      email: (state.session.employee && (state.session.employee.email || state.session.employee.username)) || '',
+      pin: getValue('loginPin').trim(),
+      startDate: getValue('payrollStartDate'),
+      endDate: getValue('payrollEndDate')
+    });
+
+    const rows = result.results || result.rows || [];
+    if (!list) return;
+
+    list.innerHTML = rows.length ? rows.map(function (row) {
+      return `
+        <div class="list-item">
+          <h4>${escapeHtml(row.employee || row.name || 'Employee')}</h4>
+          <p>Total Pay: ${money(row.totalPay || row['Total Pay'] || 0)} · Orders: ${Number(row.orders || row['Orders'] || 0)}</p>
+        </div>
+      `;
+    }).join('') : '<div class="list-item"><p>No payroll rows loaded.</p></div>';
+  } catch (error) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load payroll.')}</p></div>`;
+  }
+}
+
+function wireEvents() {
+  const loginBtn = $('loginBtn');
+  const logoutBtn = $('logoutBtn');
+  const submitOrderBtn = $('submitOrderBtn');
+  const searchOrdersBtn = $('searchOrdersBtn');
+  const lookupRewardsBtn = $('lookupRewardsBtn');
+  const loadPayrollBtn = $('loadPayrollBtn');
+  const drawWinnerBtn = $('drawWinnerBtn');
+  const clearWinnerBtn = $('clearWinnerBtn');
+
+  if (loginBtn) loginBtn.addEventListener('click', loginNow);
+  if (logoutBtn) logoutBtn.addEventListener('click', logoutNow);
+  if (submitOrderBtn) submitOrderBtn.addEventListener('click', submitOrder);
+  if (searchOrdersBtn) searchOrdersBtn.addEventListener('click', loadOrders);
+  if (lookupRewardsBtn) lookupRewardsBtn.addEventListener('click', function () { loadRewards(false); });
+  if (loadPayrollBtn) loadPayrollBtn.addEventListener('click', loadPayroll);
+  if (drawWinnerBtn) drawWinnerBtn.addEventListener('click', drawRaffleWinnerNow);
+  if (clearWinnerBtn) clearWinnerBtn.addEventListener('click', clearRaffleWinnerNow);
+
+  const loginValue = $('loginValue');
+  const loginPin = $('loginPin');
+  const discountInput = $('discountInput');
+  const tipInput = $('tipInput');
+  const mileageInput = $('mileageInput');
+  const amountPaidInput = $('amountPaidInput');
+
+  if (loginValue) loginValue.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') loginNow();
+  });
+
+  if (loginPin) loginPin.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') loginNow();
+  });
+
+  if (discountInput) discountInput.addEventListener('input', renderCart);
+  if (tipInput) tipInput.addEventListener('input', renderCart);
+  if (mileageInput) mileageInput.addEventListener('input', renderCart);
+  if (amountPaidInput) amountPaidInput.addEventListener('input', renderCart);
+}
+
+function init() {
+  renderNav();
+  wireEvents();
+  activateTab('dashboard');
+  renderCart();
+  drawRaffleWheel([]);
+}
+
+init();
