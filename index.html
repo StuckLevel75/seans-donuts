@@ -78,22 +78,38 @@
             </div>
 
             <div class="stats-grid">
-              <div class="stat-card"><span class="stat-label">Orders</span><span id="statOrders" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Sales</span><span id="statSales" class="stat-value">$0.00</span></div>
-              <div class="stat-card"><span class="stat-label">Employees</span><span id="statEmployees" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Raffle Entries</span><span id="statRaffle" class="stat-value">0</span></div>
+              <div class="stat-card">
+                <span class="stat-label">Orders</span>
+                <span id="statOrders" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Sales</span>
+                <span id="statSales" class="stat-value">$0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Employees</span>
+                <span id="statEmployees" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Raffle Entries</span>
+                <span id="statRaffle" class="stat-value">0</span>
+              </div>
             </div>
 
             <div class="split-grid">
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Announcements</h3></div>
+                <div class="section-title-row">
+                  <h3>Announcements</h3>
+                </div>
                 <div id="announcementsList" class="list-wrap">
                   <div class="list-item"><p>No active announcements.</p></div>
                 </div>
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Helpful Info</h3></div>
+                <div class="section-title-row">
+                  <h3>Helpful Info</h3>
+                </div>
                 <div class="info-list">
                   <p><strong>Portal:</strong> <span id="dashboardPortalName">Sean's Donuts</span></p>
                   <p><strong>Subtitle:</strong> <span id="dashboardPortalSubtitle">Employee Portal</span></p>
@@ -114,7 +130,9 @@
 
             <div class="pos-layout">
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Customer</h3></div>
+                <div class="section-title-row">
+                  <h3>Customer</h3>
+                </div>
 
                 <div class="form-grid">
                   <div class="field">
@@ -131,14 +149,19 @@
                   </div>
                 </div>
 
-                <div class="section-title-row section-gap"><h3>Products</h3></div>
+                <div class="section-title-row section-gap">
+                  <h3>Products</h3>
+                </div>
+
                 <div id="productGrid" class="product-grid">
                   <div class="list-item"><p>No products yet.</p></div>
                 </div>
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Checkout</h3></div>
+                <div class="section-title-row">
+                  <h3>Checkout</h3>
+                </div>
 
                 <div id="cartList" class="list-wrap">
                   <div class="list-item"><p>Empty cart</p></div>
@@ -160,7 +183,10 @@
                 </div>
 
                 <div id="ownerOverrideBox" class="owner-override hidden">
-                  <div class="section-title-row"><h3>Owner Override</h3></div>
+                  <div class="section-title-row">
+                    <h3>Owner Override</h3>
+                  </div>
+
                   <div class="form-grid compact">
                     <div class="field">
                       <label for="discountInput">Discount</label>
@@ -230,15 +256,33 @@
             </div>
 
             <div class="stats-grid rewards-grid">
-              <div class="stat-card"><span class="stat-label">Visits</span><span id="rewardVisits" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Progress</span><span id="rewardProgress" class="stat-value">0 / 10</span></div>
-              <div class="stat-card"><span class="stat-label">Available</span><span id="rewardAvailable" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Redeemed</span><span id="rewardRedeemed" class="stat-value">0</span></div>
+              <div class="stat-card">
+                <span class="stat-label">Visits</span>
+                <span id="rewardVisits" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Progress</span>
+                <span id="rewardProgress" class="stat-value">0 / 10</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Available</span>
+                <span id="rewardAvailable" class="stat-value">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Redeemed</span>
+                <span id="rewardRedeemed" class="stat-value">0</span>
+              </div>
             </div>
 
             <div class="split-grid">
-              <div class="card-block section-card"><div class="section-title-row"><h3>Last Visit</h3></div><p id="rewardLastVisit">—</p></div>
-              <div class="card-block section-card"><div class="section-title-row"><h3>Last Order</h3></div><p id="rewardLastOrder">—</p></div>
+              <div class="card-block section-card">
+                <div class="section-title-row"><h3>Last Visit</h3></div>
+                <p id="rewardLastVisit">—</p>
+              </div>
+              <div class="card-block section-card">
+                <div class="section-title-row"><h3>Last Order</h3></div>
+                <p id="rewardLastOrder">—</p>
+              </div>
             </div>
 
             <div id="rewardsMsg" class="message"></div>
@@ -256,18 +300,23 @@
             <div class="button-row">
               <button id="drawWinnerBtn" class="btn btn-primary" type="button">Draw Winner</button>
               <button id="clearWinnerBtn" class="btn btn-danger" type="button">Clear Winner</button>
+              <button id="resetRaffleBtn" class="btn btn-danger hidden" type="button">Reset Raffle</button>
             </div>
 
             <div class="split-grid section-gap">
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Wheel</h3></div>
+                <div class="section-title-row">
+                  <h3>Wheel</h3>
+                </div>
                 <div style="display:flex;justify-content:center;align-items:center;padding:12px 0;">
                   <canvas id="raffleWheel" width="320" height="320"></canvas>
                 </div>
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Winner</h3></div>
+                <div class="section-title-row">
+                  <h3>Winner</h3>
+                </div>
                 <div id="raffleWinnerBox" class="list-wrap">
                   <div class="list-item"><p>No winner drawn yet.</p></div>
                 </div>
@@ -320,7 +369,9 @@
 
             <div class="admin-grid">
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Portal Settings</h3></div>
+                <div class="section-title-row">
+                  <h3>Portal Settings</h3>
+                </div>
 
                 <div class="form-grid">
                   <div class="field">
@@ -348,7 +399,9 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Theme</h3></div>
+                <div class="section-title-row">
+                  <h3>Theme</h3>
+                </div>
 
                 <div class="form-grid">
                   <div class="field"><label for="themePrimary">Primary</label><input id="themePrimary" type="color" /></div>
@@ -368,7 +421,9 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>UI Text</h3></div>
+                <div class="section-title-row">
+                  <h3>UI Text</h3>
+                </div>
 
                 <div class="form-grid">
                   <div class="field"><label for="uiLogoEmoji">Logo Emoji</label><input id="uiLogoEmoji" type="text" /></div>
@@ -397,7 +452,9 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Products</h3></div>
+                <div class="section-title-row">
+                  <h3>Products</h3>
+                </div>
                 <div id="productsAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addProductRowBtn" class="btn btn-secondary" type="button">Add Product</button>
@@ -407,7 +464,9 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Employees</h3></div>
+                <div class="section-title-row">
+                  <h3>Employees</h3>
+                </div>
                 <div id="employeesAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
@@ -417,7 +476,9 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row"><h3>Payment Methods</h3></div>
+                <div class="section-title-row">
+                  <h3>Payment Methods</h3>
+                </div>
                 <div id="paymentMethodsAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
