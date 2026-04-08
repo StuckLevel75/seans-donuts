@@ -122,6 +122,10 @@
                     <input id="customerName" type="text" placeholder="Customer name" />
                   </div>
                   <div class="field">
+                    <label for="customerDiscord">Customer Discord</label>
+                    <input id="customerDiscord" type="text" placeholder="Discord username" />
+                  </div>
+                  <div class="field">
                     <label for="phoneNumber">Phone Number</label>
                     <input id="phoneNumber" type="text" placeholder="Phone number" />
                   </div>
@@ -249,9 +253,32 @@
               </div>
             </div>
 
-            <div id="raffleList" class="list-wrap">
+            <div class="button-row">
+              <button id="drawWinnerBtn" class="btn btn-primary" type="button">Draw Winner</button>
+              <button id="clearWinnerBtn" class="btn btn-danger" type="button">Clear Winner</button>
+            </div>
+
+            <div class="split-grid section-gap">
+              <div class="card-block section-card">
+                <div class="section-title-row"><h3>Wheel</h3></div>
+                <div style="display:flex;justify-content:center;align-items:center;padding:12px 0;">
+                  <canvas id="raffleWheel" width="320" height="320"></canvas>
+                </div>
+              </div>
+
+              <div class="card-block section-card">
+                <div class="section-title-row"><h3>Winner</h3></div>
+                <div id="raffleWinnerBox" class="list-wrap">
+                  <div class="list-item"><p>No winner drawn yet.</p></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="raffleList" class="list-wrap section-gap">
               <div class="list-item"><p>No raffle entries loaded.</p></div>
             </div>
+
+            <div id="raffleMsg" class="message"></div>
           </section>
 
           <section id="payrollSection" class="panel page-panel hidden">
