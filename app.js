@@ -69,7 +69,7 @@ function hideEl(id) {
 
 function requireApiUrl() {
   if (!state.apiUrl) {
-    showMessage('loginMsg', 'Missing API URL.', 'error');
+    showMessage('loginMsg', 'Paste your Apps Script Web App URL first.', 'error');
     return false;
   }
   return true;
@@ -88,8 +88,7 @@ async function api(action, payload = {}) {
     throw new Error(`HTTP ${response.status}`);
   }
 
-  const data = await response.json();
-  return data;
+  return await response.json();
 }
 
 function getRole() {
@@ -111,20 +110,13 @@ function isOwnerLike() {
   );
 }
 
-function isManagerLike() {
-  const perms = getPerms();
-  const role = getRole();
-  return !!(
-    perms.isOwner ||
-    perms.isAdmin ||
-    perms.isManager ||
-    role === 'owner' ||
-    role === 'admin' ||
-    role === 'manager'
-  );
-}
-
 function getVisibleTabs() {
+  const baseTabs = tabs.filter(tab => !tab.ownerOnly);
+
+  if (!state.session) {
+    return baseTabs;
+  }
+
   return tabs.filter(tab => {
     if (!tab.ownerOnly) return true;
     return isOwnerLike();
@@ -136,7 +128,10 @@ function renderNav() {
   if (!nav) return;
 
   let visibleTabs = getVisibleTabs();
-  if (!visibleTabs.length) visibleTabs = tabs.filter(t => !t.ownerOnly);
+
+  if (!visibleTabs.length) {
+    visibleTabs = tabs.filter(tab => !tab.ownerOnly);
+  }
 
   if (!visibleTabs.some(tab => tab.key === state.activeTab)) {
     state.activeTab = visibleTabs[0]?.key || 'dashboard';
@@ -159,12 +154,11 @@ function renderNav() {
   });
 }
 
-function activateTab(tab) {
+function activateTab(tabKey) {
   const visibleTabs = getVisibleTabs();
-  const allowed = visibleTabs.some(t => t.key === tab);
+  const allowed = visibleTabs.some(tab => tab.key === tabKey);
 
-  state.activeTab = allowed ? tab : (visibleTabs[0]?.key || 'dashboard');
-
+  state.activeTab = allowed ? tabKey : (visibleTabs[0]?.key || 'dashboard');
   renderNav();
 
   const sectionMap = {
@@ -245,6 +239,7 @@ function renderCart() {
       const product = state.products.find(p => p.name === name) || {};
       const price = Number(product.price || 0);
       const quantity = Number(qty || 0);
+
       return {
         name,
         qty: quantity,
@@ -277,6 +272,20 @@ function renderCart() {
   setText('tipText', money(tip));
   setText('amountPaidText', money(amountPaid));
   setText('totalText', money(total));
+}
+
+function applyTheme(theme = {}) {
+  const root = document.documentElement;
+  if (!root) return;
+
+  if (theme.primary) root.style.setProperty('--primary', theme.primary);
+  if (theme.primaryDark) root.style.setProperty('--primary-dark', theme.primaryDark);
+  if (theme.secondary) root.style.setProperty('--secondary', theme.secondary);
+  if (theme.bg) root.style.setProperty('--bg', theme.bg);
+  if (theme.card) root.style.setProperty('--card', theme.card);
+  if (theme.text) root.style.setProperty('--text', theme.text);
+  if (theme.muted) root.style.setProperty('--muted', theme.muted);
+  if (theme.border) root.style.setProperty('--border', theme.border);
 }
 
 function fillPortalHeader() {
@@ -359,64 +368,6 @@ function fillPortalHeader() {
 
   applyTheme(theme);
   updateOwnerUI();
-}
-
-function applyTheme(theme = {}) {
-  const root = document.documentElement;
-  if (!root) return;
-
-  if (theme.primary) root.style.setProperty('--primary', theme.primary);
-  if (theme.primaryDark) root.style.setProperty('--primary-dark', theme.primaryDark);
-  if (theme.secondary) root.style.setProperty('--secondary', theme.secondary);
-  if (theme.bg) root.style.setProperty('--bg', theme.bg);
-  if (theme.card) root.style.setProperty('--card', theme.card);
-  if (theme.text) root.style.setProperty('--text', theme.text);
-  if (theme.muted) root.style.setProperty('--muted', theme.muted);
-  if (theme.border) root.style.setProperty('--border', theme.border);
-}
-
-function renderBootstrap() {
-  const stats = state.bootstrap?.stats || {};
-  const announcements = state.bootstrap?.announcements || [];
-  const settings = state.bootstrap?.settings || {};
-
-  setText('statOrders', Number(stats.totalOrders || 0));
-  setText('statSales', money(stats.totalSales || 0));
-  setText('statEmployees', Number(stats.activeEmployees || 0));
-  setText('statRaffle', Number(stats.raffleEntries || 0));
-
-  const announcementsList = $('announcementsList');
-  if (announcementsList) {
-    announcementsList.innerHTML = announcements.length
-      ? announcements.map(item => `
-          <div class="list-item">
-            <h4>${escapeHtml(item.title || 'Announcement')}</h4>
-            <p>${escapeHtml(item.message || '')}</p>
-          </div>
-        `).join('')
-      : '<div class="list-item"><p>No active announcements.</p></div>';
-  }
-
-  const methods = Array.isArray(settings.paymentMethods) && settings.paymentMethods.length
-    ? settings.paymentMethods
-    : state.paymentMethods;
-
-  state.paymentMethods = methods;
-
-  const paymentMethod = $('paymentMethod');
-  if (paymentMethod) {
-    paymentMethod.innerHTML = methods.map(method => `
-      <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
-    `).join('');
-  }
-
-  renderAdminCollections();
-}
-
-function renderAdminCollections() {
-  renderProductsAdmin();
-  renderEmployeesAdmin();
-  renderPaymentMethodsAdmin();
 }
 
 function renderProductsAdmin() {
@@ -520,8 +471,53 @@ function renderPaymentMethodsAdmin() {
   });
 }
 
+function renderAdminCollections() {
+  renderProductsAdmin();
+  renderEmployeesAdmin();
+  renderPaymentMethodsAdmin();
+}
+
+function renderBootstrap() {
+  const stats = state.bootstrap?.stats || {};
+  const announcements = state.bootstrap?.announcements || [];
+  const settings = state.bootstrap?.settings || {};
+
+  setText('statOrders', Number(stats.totalOrders || 0));
+  setText('statSales', money(stats.totalSales || 0));
+  setText('statEmployees', Number(stats.activeEmployees || 0));
+  setText('statRaffle', Number(stats.raffleEntries || 0));
+
+  const announcementsList = $('announcementsList');
+  if (announcementsList) {
+    announcementsList.innerHTML = announcements.length
+      ? announcements.map(item => `
+          <div class="list-item">
+            <h4>${escapeHtml(item.title || 'Announcement')}</h4>
+            <p>${escapeHtml(item.message || '')}</p>
+          </div>
+        `).join('')
+      : '<div class="list-item"><p>No active announcements.</p></div>';
+  }
+
+  const methods = Array.isArray(settings.paymentMethods) && settings.paymentMethods.length
+    ? settings.paymentMethods
+    : state.paymentMethods;
+
+  state.paymentMethods = methods;
+
+  const paymentMethod = $('paymentMethod');
+  if (paymentMethod) {
+    paymentMethod.innerHTML = methods.map(method => `
+      <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
+    `).join('');
+  }
+
+  renderAdminCollections();
+}
+
 async function loadBootstrap() {
   const result = await api('getPortalBootstrap');
+
   if (result.ok === false) {
     throw new Error(result.message || 'Could not load portal data.');
   }
@@ -592,6 +588,7 @@ function logoutNow() {
   setText('userBadge', 'Portal User');
 
   renderNav();
+  activateTab('dashboard');
 }
 
 async function submitOrder() {
@@ -787,24 +784,28 @@ async function loadPayroll() {
 }
 
 function collectProductsAdmin() {
-  return Array.from(document.querySelectorAll('#productsAdminList [data-product-row]')).map(row => ({
-    name: row.querySelector('[data-product-name]')?.value?.trim() || '',
-    price: Number(row.querySelector('[data-product-price]')?.value || 0)
-  })).filter(item => item.name);
+  return Array.from(document.querySelectorAll('#productsAdminList [data-product-row]'))
+    .map(row => ({
+      name: row.querySelector('[data-product-name]')?.value?.trim() || '',
+      price: Number(row.querySelector('[data-product-price]')?.value || 0)
+    }))
+    .filter(item => item.name);
 }
 
 function collectEmployeesAdmin() {
-  return Array.from(document.querySelectorAll('#employeesAdminList [data-employee-row]')).map(row => ({
-    name: row.querySelector('[data-employee-name]')?.value?.trim() || '',
-    email: row.querySelector('[data-employee-email]')?.value?.trim() || '',
-    role: row.querySelector('[data-employee-role]')?.value?.trim() || ''
-  })).filter(item => item.name || item.email);
+  return Array.from(document.querySelectorAll('#employeesAdminList [data-employee-row]'))
+    .map(row => ({
+      name: row.querySelector('[data-employee-name]')?.value?.trim() || '',
+      email: row.querySelector('[data-employee-email]')?.value?.trim() || '',
+      role: row.querySelector('[data-employee-role]')?.value?.trim() || ''
+    }))
+    .filter(item => item.name || item.email);
 }
 
 function collectPaymentMethodsAdmin() {
-  return Array.from(document.querySelectorAll('#paymentMethodsAdminList [data-payment-row]')).map(row => (
-    row.querySelector('[data-payment-method]')?.value?.trim() || ''
-  )).filter(Boolean);
+  return Array.from(document.querySelectorAll('#paymentMethodsAdminList [data-payment-row]'))
+    .map(row => row.querySelector('[data-payment-method]')?.value?.trim() || '')
+    .filter(Boolean);
 }
 
 async function saveSettings() {
@@ -932,10 +933,10 @@ async function saveProducts() {
     }
 
     showMessage('productsMsg', result.message || 'Saved.', 'success');
-    await loadBootstrap();
     state.products = payload.products;
     buildProductGrid();
     renderCart();
+    await loadBootstrap();
   } catch (error) {
     showMessage('productsMsg', error.message || 'Could not save products.', 'error');
   }
