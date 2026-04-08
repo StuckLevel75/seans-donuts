@@ -5,7 +5,11 @@ const state = {
   products: [],
   cart: {},
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
-  activeTab: 'dashboard'
+  activeTab: 'dashboard',
+  raffleEntries: [],
+  raffleWinner: null,
+  wheelRotation: 0,
+  wheelSpinning: false
 };
 
 const tabs = [
@@ -113,9 +117,7 @@ function isOwnerLike() {
 function getVisibleTabs() {
   const baseTabs = tabs.filter(tab => !tab.ownerOnly);
 
-  if (!state.session) {
-    return baseTabs;
-  }
+  if (!state.session) return baseTabs;
 
   return tabs.filter(tab => {
     if (!tab.ownerOnly) return true;
@@ -128,10 +130,7 @@ function renderNav() {
   if (!nav) return;
 
   let visibleTabs = getVisibleTabs();
-
-  if (!visibleTabs.length) {
-    visibleTabs = tabs.filter(tab => !tab.ownerOnly);
-  }
+  if (!visibleTabs.length) visibleTabs = tabs.filter(tab => !tab.ownerOnly);
 
   if (!visibleTabs.some(tab => tab.key === state.activeTab)) {
     state.activeTab = visibleTabs[0]?.key || 'dashboard';
@@ -148,9 +147,7 @@ function renderNav() {
   `).join('');
 
   nav.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activateTab(btn.dataset.tab);
-    });
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
 }
 
@@ -178,6 +175,10 @@ function activateTab(tabKey) {
 
   const activeSection = $(sectionMap[state.activeTab]);
   if (activeSection) activeSection.classList.remove('hidden');
+
+  if (state.activeTab === 'raffle') {
+    drawRaffleWheel(state.raffleEntries);
+  }
 }
 
 function updateOwnerUI() {
@@ -216,9 +217,7 @@ function buildProductGrid() {
       if (!product) return;
 
       const current = Number(state.cart[product.name] || 0);
-      const next = btn.dataset.qty === 'up'
-        ? current + 1
-        : Math.max(0, current - 1);
+      const next = btn.dataset.qty === 'up' ? current + 1 : Math.max(0, current - 1);
 
       if (next <= 0) delete state.cart[product.name];
       else state.cart[product.name] = next;
@@ -339,14 +338,14 @@ function fillPortalHeader() {
   setValue('settingsAnnouncement', announcement);
   setValue('settingsBankId', bankId);
 
-  setValue('themePrimary', theme.primary || '');
-  setValue('themePrimaryDark', theme.primaryDark || '');
-  setValue('themeSecondary', theme.secondary || '');
-  setValue('themeBg', theme.bg || '');
-  setValue('themeCard', theme.card || '');
-  setValue('themeText', theme.text || '');
-  setValue('themeMuted', theme.muted || '');
-  setValue('themeBorder', theme.border || '');
+  setValue('themePrimary', theme.primary || '#f28c18');
+  setValue('themePrimaryDark', theme.primaryDark || '#de7c0c');
+  setValue('themeSecondary', theme.secondary || '#6c4330');
+  setValue('themeBg', theme.bg || '#fdf4ea');
+  setValue('themeCard', theme.card || '#ffffff');
+  setValue('themeText', theme.text || '#4a2e22');
+  setValue('themeMuted', theme.muted || '#8a6a5a');
+  setValue('themeBorder', theme.border || '#edc9a5');
 
   setValue('uiLogoEmoji', ui.logoEmoji || logoEmoji);
   setValue('uiLoginTitle', ui.loginTitle || portalName);
@@ -387,8 +386,8 @@ function renderProductsAdmin() {
 
   wrap.innerHTML = products.map((item, index) => `
     <div class="admin-row" data-product-row="${index}">
-      <input type="text" data-product-name value="${escapeHtml(item.name || '')}" placeholder="Product Name" />
-      <input type="number" min="0" step="0.01" data-product-price value="${escapeHtml(item.price || 0)}" placeholder="Price" />
+      <input type="text" data-product-name value="${escapeHtml(item.name || item.Name || '')}" placeholder="Product Name" />
+      <input type="number" min="0" step="0.01" data-product-price value="${escapeHtml(item.price || item.Price || 0)}" placeholder="Price" />
       <button type="button" class="btn btn-danger" data-remove-product="${index}">Remove</button>
     </div>
   `).join('');
@@ -396,9 +395,7 @@ function renderProductsAdmin() {
   wrap.querySelectorAll('[data-remove-product]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = Number(btn.dataset.removeProduct);
-      const list = Array.isArray(state.bootstrap?.settings?.products)
-        ? state.bootstrap.settings.products
-        : [];
+      const list = Array.isArray(state.bootstrap?.settings?.products) ? state.bootstrap.settings.products : [];
       list.splice(i, 1);
       renderProductsAdmin();
     });
@@ -409,9 +406,7 @@ function renderEmployeesAdmin() {
   const wrap = $('employeesAdminList');
   if (!wrap) return;
 
-  const employees = Array.isArray(state.bootstrap?.settings?.employees)
-    ? state.bootstrap.settings.employees
-    : [];
+  const employees = Array.isArray(state.bootstrap?.settings?.employees) ? state.bootstrap.settings.employees : [];
 
   if (!employees.length) {
     wrap.innerHTML = '<div class="list-item"><p>No employees loaded.</p></div>';
@@ -420,9 +415,9 @@ function renderEmployeesAdmin() {
 
   wrap.innerHTML = employees.map((item, index) => `
     <div class="admin-row" data-employee-row="${index}">
-      <input type="text" data-employee-name value="${escapeHtml(item.name || '')}" placeholder="Name" />
-      <input type="text" data-employee-email value="${escapeHtml(item.email || '')}" placeholder="Email" />
-      <input type="text" data-employee-role value="${escapeHtml(item.role || '')}" placeholder="Role" />
+      <input type="text" data-employee-name value="${escapeHtml(item.name || item.Name || '')}" placeholder="Name" />
+      <input type="text" data-employee-email value="${escapeHtml(item.email || item.Email || '')}" placeholder="Email" />
+      <input type="text" data-employee-role value="${escapeHtml(item.role || item.Role || '')}" placeholder="Role" />
       <button type="button" class="btn btn-danger" data-remove-employee="${index}">Remove</button>
     </div>
   `).join('');
@@ -430,9 +425,7 @@ function renderEmployeesAdmin() {
   wrap.querySelectorAll('[data-remove-employee]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = Number(btn.dataset.removeEmployee);
-      const list = Array.isArray(state.bootstrap?.settings?.employees)
-        ? state.bootstrap.settings.employees
-        : [];
+      const list = Array.isArray(state.bootstrap?.settings?.employees) ? state.bootstrap.settings.employees : [];
       list.splice(i, 1);
       renderEmployeesAdmin();
     });
@@ -454,7 +447,7 @@ function renderPaymentMethodsAdmin() {
 
   wrap.innerHTML = methods.map((item, index) => `
     <div class="admin-row" data-payment-row="${index}">
-      <input type="text" data-payment-method value="${escapeHtml(item || '')}" placeholder="Method" />
+      <input type="text" data-payment-method value="${escapeHtml(item.Name || item.name || item || '')}" placeholder="Method" />
       <button type="button" class="btn btn-danger" data-remove-payment-method="${index}">Remove</button>
     </div>
   `).join('');
@@ -475,6 +468,142 @@ function renderAdminCollections() {
   renderProductsAdmin();
   renderEmployeesAdmin();
   renderPaymentMethodsAdmin();
+}
+
+function renderRaffleWinner() {
+  const box = $('raffleWinnerBox');
+  if (!box) return;
+
+  const winner = state.raffleWinner;
+
+  if (!winner) {
+    box.innerHTML = '<div class="list-item"><p>No winner drawn yet.</p></div>';
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="list-item">
+      <h4>${escapeHtml(winner.customerName || winner['Customer Name'] || 'Winner')}</h4>
+      <p><strong>Discord:</strong> ${escapeHtml(winner.customerDiscord || winner['Customer Discord'] || '—')}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(winner.phoneNumber || winner['Phone Number'] || '—')}</p>
+      <p><strong>Tickets:</strong> ${Number(winner.ticketsBought || winner['Tickets Bought'] || 0)}</p>
+      <p><strong>Order:</strong> ${escapeHtml(winner.orderNumber || winner['Order Number'] || '—')}</p>
+    </div>
+  `;
+}
+
+function drawRaffleWheel(entries) {
+  const canvas = $('raffleWheel');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = 130;
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (!entries || !entries.length) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#f5e5d5';
+    ctx.fill();
+    ctx.strokeStyle = '#6c4330';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = '#6c4330';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No Entries', cx, cy + 6);
+    return;
+  }
+
+  const anglePer = (Math.PI * 2) / entries.length;
+  const rotation = state.wheelRotation || 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const start = rotation + (i * anglePer);
+    const end = start + anglePer;
+    const label = String(entries[i].customerName || entries[i]['Customer Name'] || `Entry ${i + 1}`);
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#f28c18' : '#6c4330';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + anglePer / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(label.slice(0, 16), radius - 12, 4);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#6c4330';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius - 14);
+  ctx.lineTo(cx - 12, cy - radius + 10);
+  ctx.lineTo(cx + 12, cy - radius + 10);
+  ctx.closePath();
+  ctx.fillStyle = '#c7372f';
+  ctx.fill();
+}
+
+function animateWheelToWinner(entries, winner) {
+  if (!entries.length || !winner) return;
+
+  const index = entries.findIndex(entry =>
+    String(entry.orderNumber || entry['Order Number'] || '') === String(winner.orderNumber || winner['Order Number'] || '') &&
+    String(entry.customerName || entry['Customer Name'] || '') === String(winner.customerName || winner['Customer Name'] || '')
+  );
+
+  if (index < 0) {
+    drawRaffleWheel(entries);
+    return;
+  }
+
+  const anglePer = (Math.PI * 2) / entries.length;
+  const targetAngle = -(index * anglePer) - (anglePer / 2) - (Math.PI / 2);
+  const startRotation = state.wheelRotation || 0;
+  const finalRotation = targetAngle - (Math.PI * 8);
+  const duration = 3500;
+  const startTime = performance.now();
+
+  state.wheelSpinning = true;
+
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    state.wheelRotation = startRotation + ((finalRotation - startRotation) * eased);
+    drawRaffleWheel(entries);
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      state.wheelSpinning = false;
+      state.wheelRotation = finalRotation;
+      drawRaffleWheel(entries);
+    }
+  }
+
+  requestAnimationFrame(step);
 }
 
 function renderBootstrap() {
@@ -508,7 +637,7 @@ function renderBootstrap() {
   const paymentMethod = $('paymentMethod');
   if (paymentMethod) {
     paymentMethod.innerHTML = methods.map(method => `
-      <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
+      <option value="${escapeHtml(method.Name || method.name || method)}">${escapeHtml(method.Name || method.name || method)}</option>
     `).join('');
   }
 
@@ -579,6 +708,9 @@ function logoutNow() {
   state.products = [];
   state.cart = {};
   state.activeTab = 'dashboard';
+  state.raffleEntries = [];
+  state.raffleWinner = null;
+  state.wheelRotation = 0;
 
   showEl('loginView');
   hideEl('portalView');
@@ -613,6 +745,7 @@ async function submitOrder() {
       email: state.session.employee?.email || state.session.employee?.username || '',
       pin: getValue('loginPin').trim(),
       customerName: getValue('customerName').trim(),
+      customerDiscord: getValue('customerDiscord').trim(),
       phoneNumber: getValue('phoneNumber').trim(),
       mileage: Number(getValue('mileageInput', 0) || 0),
       amountPaid: Number(getValue('amountPaidInput', 0) || 0),
@@ -634,6 +767,7 @@ async function submitOrder() {
     buildProductGrid();
 
     setValue('customerName', '');
+    setValue('customerDiscord', '');
     setValue('phoneNumber', '');
     setValue('mileageInput', '0');
     setValue('amountPaidInput', '0');
@@ -646,7 +780,8 @@ async function submitOrder() {
 
     await Promise.allSettled([
       loadOrders(),
-      loadBootstrap()
+      loadBootstrap(),
+      loadRaffle()
     ]);
   } catch (error) {
     showMessage('orderMsg', error.message || 'Order failed.', 'error');
@@ -731,7 +866,12 @@ async function loadRaffle() {
       pin: getValue('loginPin').trim()
     });
 
-    const rows = result.results || result.entries || [];
+    const rows = result.entries || result.results || [];
+    state.raffleEntries = rows;
+    state.raffleWinner = result.winner || null;
+
+    renderRaffleWinner();
+    drawRaffleWheel(rows);
 
     if (!list) return;
 
@@ -739,7 +879,10 @@ async function loadRaffle() {
       ? rows.map(row => `
           <div class="list-item">
             <h4>${escapeHtml(row.customerName || row['Customer Name'] || 'Entry')}</h4>
-            <p>Tickets: ${Number(row.ticketsBought || row['Tickets Bought'] || 0)}</p>
+            <p><strong>Discord:</strong> ${escapeHtml(row.customerDiscord || row['Customer Discord'] || '—')}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(row.phoneNumber || row['Phone Number'] || '—')}</p>
+            <p><strong>Tickets:</strong> ${Number(row.ticketsBought || row['Tickets Bought'] || 0)}</p>
+            <p><strong>Order:</strong> ${escapeHtml(row.orderNumber || row['Order Number'] || '—')}</p>
           </div>
         `).join('')
       : '<div class="list-item"><p>No raffle entries loaded.</p></div>';
@@ -747,6 +890,59 @@ async function loadRaffle() {
     if (list) {
       list.innerHTML = `<div class="list-item"><p>${escapeHtml(error.message || 'Could not load raffle.')}</p></div>`;
     }
+  }
+}
+
+async function drawRaffleWinnerNow() {
+  if (!state.session || state.wheelSpinning) return;
+
+  showMessage('raffleMsg', 'Drawing winner...', 'info');
+
+  try {
+    const result = await api('drawRaffleWinner', {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim()
+    });
+
+    if (!result.ok) {
+      showMessage('raffleMsg', result.message || 'Could not draw winner.', 'error');
+      return;
+    }
+
+    state.raffleWinner = result.winner || null;
+    renderRaffleWinner();
+
+    if (state.raffleEntries.length && state.raffleWinner) {
+      animateWheelToWinner(state.raffleEntries, state.raffleWinner);
+    }
+
+    showMessage('raffleMsg', result.message || 'Winner drawn.', 'success');
+  } catch (error) {
+    showMessage('raffleMsg', error.message || 'Could not draw winner.', 'error');
+  }
+}
+
+async function clearRaffleWinnerNow() {
+  if (!state.session) return;
+
+  showMessage('raffleMsg', 'Clearing winner...', 'info');
+
+  try {
+    const result = await api('clearRaffleWinner', {
+      email: state.session.employee?.email || state.session.employee?.username || '',
+      pin: getValue('loginPin').trim()
+    });
+
+    if (!result.ok) {
+      showMessage('raffleMsg', result.message || 'Could not clear winner.', 'error');
+      return;
+    }
+
+    state.raffleWinner = null;
+    renderRaffleWinner();
+    showMessage('raffleMsg', result.message || 'Winner cleared.', 'success');
+  } catch (error) {
+    showMessage('raffleMsg', error.message || 'Could not clear winner.', 'error');
   }
 }
 
@@ -772,7 +968,7 @@ async function loadPayroll() {
       ? rows.map(row => `
           <div class="list-item">
             <h4>${escapeHtml(row.employee || row.name || 'Employee')}</h4>
-            <p>Total Pay: ${money(row.totalPay || 0)} · Orders: ${Number(row.orders || 0)}</p>
+            <p>Total Pay: ${money(row.totalPay || row['Total Pay'] || 0)} · Orders: ${Number(row.orders || row['Orders'] || 0)}</p>
           </div>
         `).join('')
       : '<div class="list-item"><p>No payroll rows loaded.</p></div>';
@@ -825,9 +1021,7 @@ async function saveSettings() {
 
     const result = await api('saveSettings', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save settings.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save settings.');
 
     showMessage('settingsMsg', result.message || 'Saved.', 'success');
     await loadBootstrap();
@@ -859,9 +1053,7 @@ async function saveTheme() {
 
     const result = await api('saveTheme', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save theme.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save theme.');
 
     applyTheme(payload.theme);
     showMessage('themeMsg', result.message || 'Saved.', 'success');
@@ -903,9 +1095,7 @@ async function saveUIText() {
 
     const result = await api('saveUIText', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save UI text.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save UI text.');
 
     showMessage('uiTextMsg', result.message || 'Saved.', 'success');
     await loadBootstrap();
@@ -928,9 +1118,7 @@ async function saveProducts() {
 
     const result = await api('saveProducts', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save products.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save products.');
 
     showMessage('productsMsg', result.message || 'Saved.', 'success');
     state.products = payload.products;
@@ -956,9 +1144,7 @@ async function saveEmployees() {
 
     const result = await api('saveEmployees', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save employees.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save employees.');
 
     showMessage('employeesMsg', result.message || 'Saved.', 'success');
     await loadBootstrap();
@@ -981,9 +1167,7 @@ async function savePaymentMethods() {
 
     const result = await api('savePaymentMethods', payload);
 
-    if (!result.ok) {
-      throw new Error(result.message || 'Could not save payment methods.');
-    }
+    if (!result.ok) throw new Error(result.message || 'Could not save payment methods.');
 
     showMessage('paymentMethodsMsg', result.message || 'Saved.', 'success');
     await loadBootstrap();
@@ -1036,6 +1220,8 @@ function wireEvents() {
   $('searchOrdersBtn')?.addEventListener('click', loadOrders);
   $('lookupRewardsBtn')?.addEventListener('click', () => loadRewards(false));
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
+  $('drawWinnerBtn')?.addEventListener('click', drawRaffleWinnerNow);
+  $('clearWinnerBtn')?.addEventListener('click', clearRaffleWinnerNow);
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettings);
   $('saveThemeBtn')?.addEventListener('click', saveTheme);
@@ -1068,6 +1254,7 @@ function init() {
   setDefaultDates();
   activateTab('dashboard');
   renderCart();
+  drawRaffleWheel([]);
 }
 
 init();
