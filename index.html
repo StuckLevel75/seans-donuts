@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-title" id="loadingTitle">SAVING</div>
+      <div class="loading-text" id="loadingText">Please wait...</div>
+    </div>
+  </div>
+
   <div class="app-shell">
     <section id="loginView" class="login-page">
       <div class="login-card-v1">
@@ -25,42 +33,56 @@
     </section>
 
     <section id="portalView" class="hidden">
-      <header class="topbar">
-        <div class="brand-wrap">
-          <div class="brand-mark" id="brandLogo">🍩</div>
-          <div>
-            <h1 id="portalName">Sean's Donuts</h1>
-            <p id="portalSubtitle">Employee Portal</p>
+      <header class="topbar topbar-stacked">
+        <div class="topbar-main">
+          <div class="brand-wrap">
+            <div class="brand-mark" id="brandLogo">🍩</div>
+            <div>
+              <h1 id="portalName">Sean's Donuts</h1>
+              <p id="portalSubtitle">Employee Portal</p>
+            </div>
+          </div>
+
+          <div class="topbar-right topbar-right-header">
+            <div class="header-meta-bar">
+              <div class="header-meta-item">
+                <span class="header-meta-label">Role</span>
+                <span id="sessionRole" class="header-meta-value">—</span>
+              </div>
+
+              <div class="header-meta-divider"></div>
+
+              <div class="header-meta-item">
+                <span class="header-meta-label">Bank ID</span>
+                <span id="bankIdText" class="header-meta-value">24596194</span>
+              </div>
+
+              <div class="header-meta-divider"></div>
+
+              <div class="header-meta-item header-status-item">
+                <span class="dot"></span>
+                <span id="sessionStatus" class="header-meta-value">Signed out</span>
+              </div>
+            </div>
+
+            <div class="user-chip">
+              <span id="userBadge">Portal User</span>
+            </div>
+
+            <button id="logoutBtn" class="btn btn-danger hidden" type="button">Logout</button>
           </div>
         </div>
 
-        <div class="topbar-right">
-          <div class="status-chip">
-            <span class="dot"></span>
-            <span id="sessionStatus">Signed out</span>
+        <div class="topbar-sub">
+          <div class="announcement-inline">
+            <strong>Announcement:</strong>
+            <span id="announcementBar">Welcome to Sean's Donuts Portal</span>
           </div>
-          <div class="user-chip">
-            <span id="userBadge">Portal User</span>
-          </div>
-          <button id="logoutBtn" class="btn btn-danger hidden" type="button">Logout</button>
         </div>
       </header>
 
-      <section class="announcement-wrap">
-        <div class="announcement-card">
-          <strong>Announcement:</strong>
-          <span id="announcementBar">Welcome to Sean's Donuts Portal</span>
-        </div>
-      </section>
-
       <main class="main-layout">
         <aside class="sidebar">
-          <div class="sidebar-card">
-            <h3>Quick Info</h3>
-            <p><strong>Role:</strong> <span id="sessionRole">—</span></p>
-            <p><strong>Bank ID:</strong> <span id="bankIdText">24596194</span></p>
-          </div>
-
           <div class="sidebar-card">
             <h3>Navigation</h3>
             <div id="navTabs" class="nav-tabs"></div>
@@ -186,6 +208,7 @@
                   <div class="section-title-row">
                     <h3>Owner Override</h3>
                   </div>
+
                   <div class="form-grid compact">
                     <div class="field">
                       <label for="discountInput">Discount</label>
@@ -255,33 +278,15 @@
             </div>
 
             <div class="stats-grid rewards-grid">
-              <div class="stat-card">
-                <span class="stat-label">Visits</span>
-                <span id="rewardVisits" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Progress</span>
-                <span id="rewardProgress" class="stat-value">0 / 10</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Available</span>
-                <span id="rewardAvailable" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Redeemed</span>
-                <span id="rewardRedeemed" class="stat-value">0</span>
-              </div>
+              <div class="stat-card"><span class="stat-label">Visits</span><span id="rewardVisits" class="stat-value">0</span></div>
+              <div class="stat-card"><span class="stat-label">Progress</span><span id="rewardProgress" class="stat-value">0 / 10</span></div>
+              <div class="stat-card"><span class="stat-label">Available</span><span id="rewardAvailable" class="stat-value">0</span></div>
+              <div class="stat-card"><span class="stat-label">Redeemed</span><span id="rewardRedeemed" class="stat-value">0</span></div>
             </div>
 
             <div class="split-grid">
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Last Visit</h3></div>
-                <p id="rewardLastVisit">—</p>
-              </div>
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Last Order</h3></div>
-                <p id="rewardLastOrder">—</p>
-              </div>
+              <div class="card-block section-card"><div class="section-title-row"><h3>Last Visit</h3></div><p id="rewardLastVisit">—</p></div>
+              <div class="card-block section-card"><div class="section-title-row"><h3>Last Order</h3></div><p id="rewardLastOrder">—</p></div>
             </div>
 
             <div id="rewardsMsg" class="message"></div>
@@ -304,18 +309,14 @@
 
             <div class="split-grid section-gap">
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Wheel</h3>
-                </div>
+                <div class="section-title-row"><h3>Wheel</h3></div>
                 <div style="display:flex;justify-content:center;align-items:center;padding:12px 0;">
                   <canvas id="raffleWheel" width="320" height="320"></canvas>
                 </div>
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Winner</h3>
-                </div>
+                <div class="section-title-row"><h3>Winner</h3></div>
                 <div id="raffleWinnerBox" class="list-wrap">
                   <div class="list-item"><p>No winner drawn yet.</p></div>
                 </div>
@@ -334,14 +335,12 @@
               <div>
                 <div class="eyebrow">Marketing</div>
                 <h2>Ads Manager</h2>
-                <p>Create ads for staff to post.</p>
+                <p>Create ads for people to post.</p>
               </div>
             </div>
 
             <div class="card-block section-card">
-              <div class="section-title-row">
-                <h3>Create Ad</h3>
-              </div>
+              <div class="section-title-row"><h3>Create Ad</h3></div>
 
               <div class="form-grid">
                 <div class="field">
@@ -350,7 +349,7 @@
                 </div>
                 <div class="field">
                   <label for="adPlatform">Platform</label>
-                  <input id="adPlatform" type="text" placeholder="Discord, Twitter, Instagram..." />
+                  <input id="adPlatform" type="text" placeholder="Discord, Instagram, Twitter..." />
                 </div>
                 <div class="field">
                   <label for="adImage">Image URL</label>
@@ -372,7 +371,7 @@
 
               <div class="field section-gap">
                 <label for="adText">Ad Text</label>
-                <textarea id="adText" rows="6" placeholder="Write the ad copy here..."></textarea>
+                <textarea id="adText" rows="6" placeholder="Write the ad here..."></textarea>
               </div>
 
               <div class="button-row">
@@ -383,9 +382,7 @@
             </div>
 
             <div class="card-block section-card section-gap">
-              <div class="section-title-row">
-                <h3>Saved Ads</h3>
-              </div>
+              <div class="section-title-row"><h3>Saved Ads</h3></div>
               <div id="adsList" class="list-wrap">
                 <div class="list-item"><p>No ads yet.</p></div>
               </div>
@@ -431,9 +428,7 @@
 
             <div class="admin-grid">
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Portal Settings</h3>
-                </div>
+                <div class="section-title-row"><h3>Portal Settings</h3></div>
 
                 <div class="form-grid">
                   <div class="field">
@@ -461,9 +456,7 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Theme</h3>
-                </div>
+                <div class="section-title-row"><h3>Theme</h3></div>
 
                 <div class="form-grid">
                   <div class="field"><label for="themePrimary">Primary</label><input id="themePrimary" type="color" /></div>
@@ -483,9 +476,7 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>UI Text</h3>
-                </div>
+                <div class="section-title-row"><h3>UI Text</h3></div>
 
                 <div class="form-grid">
                   <div class="field"><label for="uiLogoEmoji">Logo Emoji</label><input id="uiLogoEmoji" type="text" /></div>
@@ -514,9 +505,7 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Products</h3>
-                </div>
+                <div class="section-title-row"><h3>Products</h3></div>
                 <div id="productsAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addProductRowBtn" class="btn btn-secondary" type="button">Add Product</button>
@@ -526,9 +515,7 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Employees</h3>
-                </div>
+                <div class="section-title-row"><h3>Employees</h3></div>
                 <div id="employeesAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
@@ -538,9 +525,7 @@
               </div>
 
               <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Payment Methods</h3>
-                </div>
+                <div class="section-title-row"><h3>Payment Methods</h3></div>
                 <div id="paymentMethodsAdminList" class="admin-list"></div>
                 <div class="button-row">
                   <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
