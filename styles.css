@@ -42,7 +42,7 @@ body {
 .login-card-v1 {
   width: 100%;
   max-width: 390px;
-  background: rgba(255,255,255,0.95);
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 22px;
@@ -116,7 +116,7 @@ textarea {
 .topbar {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.88);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
@@ -263,7 +263,7 @@ textarea {
 .sidebar-card,
 .panel,
 .card-block {
-  background: rgba(255,255,255,0.96);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow);
@@ -566,7 +566,7 @@ textarea {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 12, 6, 0.50);
+  background: rgba(20, 12, 6, 0.5);
   display: grid;
   place-items: center;
   z-index: 9999;
@@ -579,7 +579,7 @@ textarea {
   border: 1px solid rgba(242, 140, 24, 0.28);
   border-radius: 20px;
   padding: 14px 12px;
-  box-shadow: 0 0 0 1px rgba(242,140,24,0.08), 0 12px 30px rgba(0,0,0,0.30);
+  box-shadow: 0 0 0 1px rgba(242, 140, 24, 0.08), 0 12px 30px rgba(0, 0, 0, 0.3);
   text-align: center;
 }
 
@@ -591,7 +591,7 @@ textarea {
   border: 4px solid rgba(242, 140, 24, 0.16);
   border-top-color: #f2b357;
   animation: sdSpin 0.9s linear infinite;
-  box-shadow: 0 0 10px rgba(242,140,24,0.18);
+  box-shadow: 0 0 10px rgba(242, 140, 24, 0.18);
 }
 
 .loading-title {
@@ -603,7 +603,7 @@ textarea {
 }
 
 .loading-text {
-  color: rgba(255,255,255,0.82);
+  color: rgba(255, 255, 255, 0.82);
   font-size: 12px;
 }
 
@@ -669,6 +669,33 @@ textarea {
   padding: 14px;
   border-top: 1px solid var(--border);
   background: #fffdf9;
+}
+
+.settings-popout-body p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+#ordersList,
+#rewardsResultCard {
+  display: grid;
+  gap: 12px;
+}
+
+#ordersList .settings-popout,
+#rewardsResultCard .settings-popout {
+  margin: 0;
+}
+
+#ordersList .settings-popout summary,
+#rewardsResultCard .settings-popout summary {
+  font-size: 14px;
+  padding: 12px 14px;
+}
+
+#ordersList .settings-popout-body,
+#rewardsResultCard .settings-popout-body {
+  padding: 12px 14px;
 }
 
 @media (max-width: 1100px) {
