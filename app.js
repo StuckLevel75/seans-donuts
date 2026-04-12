@@ -497,6 +497,7 @@ function logoutNow() {
   state.raffleEntries = [];
   state.raffleWheelEntries = [];
   state.raffleWinner = null;
+  state.ads = [];
 
   hideEl('portalView');
   showEl('loginView');
@@ -673,9 +674,7 @@ function expandRaffleWheelEntries(entries) {
         customerDiscord: entry.customerDiscord || '',
         phoneNumber: entry.phoneNumber || '',
         ticketsBought: entry.ticketsBought || 0,
-        orderNumber: entry.orderNumber || '',
-        _sourceOrderNumber: entry.orderNumber || '',
-        _sourceCustomerName: entry.customerName || ''
+        orderNumber: entry.orderNumber || ''
       });
     }
   });
@@ -1048,6 +1047,23 @@ async function loadPayroll() {
   }
 }
 
+function wireSettingsAccordion() {
+  const accordion = $('settingsAccordion');
+  if (!accordion) return;
+
+  const allSections = Array.from(accordion.querySelectorAll('details.settings-popout'));
+
+  allSections.forEach(section => {
+    section.addEventListener('toggle', () => {
+      if (!section.open) return;
+
+      allSections.forEach(other => {
+        if (other !== section) other.open = false;
+      });
+    });
+  });
+}
+
 function wireEvents() {
   $('loginBtn')?.addEventListener('click', loginNow);
   $('logoutBtn')?.addEventListener('click', logoutNow);
@@ -1076,6 +1092,7 @@ function wireEvents() {
 
 function init() {
   wireEvents();
+  wireSettingsAccordion();
   renderCart();
   drawRaffleWheel([]);
 }
