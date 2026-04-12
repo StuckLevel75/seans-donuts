@@ -116,27 +116,68 @@ function getRole() {
 
 function isStrictOwner() {
   const perms = getPerms();
-  return perms.isOwner || getRole() === 'owner';
+  return !!(perms.isOwner || getRole() === 'owner');
 }
 
 function isOwnerLike() {
   const perms = getPerms();
   const role = getRole();
-  return perms.isOwner || perms.isAdmin || role === 'owner' || role === 'admin';
+  return !!(perms.isOwner || perms.isAdmin || role === 'owner' || role === 'admin');
 }
 
 function canManageAds() {
   const perms = getPerms();
-  return !!(perms.canManageAds || perms.isOwner || perms.isAdmin || perms.isManager);
+  const role = getRole();
+  return !!(
+    perms.canManageAds ||
+    perms.isOwner ||
+    perms.isAdmin ||
+    perms.isManager ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'manager'
+  );
 }
 
 function canViewSettings() {
   const perms = getPerms();
-  return !!(perms.canViewSettings || perms.isOwner || perms.isAdmin);
+  const role = getRole();
+  return !!(
+    perms.canViewSettings ||
+    perms.isOwner ||
+    perms.isAdmin ||
+    role === 'owner' ||
+    role === 'admin'
+  );
 }
 
 function getVisibleTabs() {
   if (!state.session) return [];
+
+  const perms = getPerms();
+  const hasAnyPermKeys = Object.keys(perms).length > 0;
+  const role = getRole();
+
+  if (!hasAnyPermKeys) {
+    const baseTabs = [
+      { key: 'dashboard', label: 'Dashboard' },
+      { key: 'pos', label: 'POS' },
+      { key: 'orders', label: 'Orders' },
+      { key: 'rewards', label: 'Rewards' },
+      { key: 'raffle', label: 'Raffle' },
+      { key: 'payroll', label: 'Payroll' }
+    ];
+
+    if (role === 'owner' || role === 'admin' || role === 'manager') {
+      baseTabs.splice(5, 0, { key: 'ads', label: 'Ads' });
+    }
+
+    if (role === 'owner' || role === 'admin') {
+      baseTabs.push({ key: 'settings', label: 'Settings', ownerOnly: true });
+    }
+
+    return baseTabs;
+  }
 
   return tabs.filter(tab => {
     if (tab.key === 'ads') return canManageAds();
@@ -152,23 +193,28 @@ function renderNav() {
   const visibleTabs = getVisibleTabs();
 
   if (!visibleTabs.length) {
-    nav.innerHTML = '<div class="list-item"><p>No sections available.</p></div>';
-    return;
-  }
+    nav.innerHTML = `
+      <button type="button" class="nav-btn active" data-tab="dashboard">Dashboard</button>
+      <button type="button" class="nav-btn" data-tab="pos">POS</button>
+      <button type="button" class="nav-btn" data-tab="orders">Orders</button>
+      <button type="button" class="nav-btn" data-tab="rewards">Rewards</button>
+      <button type="button" class="nav-btn" data-tab="raffle">Raffle</button>
+    `;
+  } else {
+    if (!visibleTabs.some(tab => tab.key === state.activeTab)) {
+      state.activeTab = visibleTabs[0].key;
+    }
 
-  if (!visibleTabs.some(tab => tab.key === state.activeTab)) {
-    state.activeTab = visibleTabs[0].key;
+    nav.innerHTML = visibleTabs.map(tab => `
+      <button
+        type="button"
+        class="nav-btn ${state.activeTab === tab.key ? 'active' : ''}"
+        data-tab="${escapeHtml(tab.key)}"
+      >
+        ${escapeHtml(tab.label)}
+      </button>
+    `).join('');
   }
-
-  nav.innerHTML = visibleTabs.map(tab => `
-    <button
-      type="button"
-      class="nav-btn ${state.activeTab === tab.key ? 'active' : ''}"
-      data-tab="${escapeHtml(tab.key)}"
-    >
-      ${escapeHtml(tab.label)}
-    </button>
-  `).join('');
 
   nav.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => activateTab(btn.dataset.tab));
@@ -219,6 +265,7 @@ function fillPortalHeader() {
   const announcement = prefs.announcement || settings.announcement || 'Welcome to Sean\'s Donuts Portal';
   const bankId = prefs.bankId || settings.bankId || '24596194';
   const logoEmoji = ui.logoEmoji || '🍩';
+  const employeeName = employee.name || 'User';
 
   setText('portalName', portalName);
   setText('portalSubtitle', portalSubtitle);
@@ -230,8 +277,8 @@ function fillPortalHeader() {
 
   setText('sessionStatus', 'Signed in');
   setText('sessionRole', employee.role || 'Employee');
-  setText('userBadge', `${employee.name || 'Portal User'}${employee.role ? ` · ${employee.role}` : ''}`);
-  setText('welcomeTitle', `Welcome, ${employee.name || 'Employee'}`);
+  setText('userBadge', `👋 Hello, ${employeeName}`);
+  setText('welcomeTitle', `Welcome, ${employeeName}`);
 
   setText('loginTitle', ui.loginTitle || portalName);
   setText('loginSubtitle', ui.loginSubtitle || 'Sign in with your username or email and PIN.');
@@ -418,7 +465,6 @@ async function loginNow() {
     fillPortalHeader();
     renderDashboard();
     renderPaymentMethods();
-    renderNav();
     buildProductGrid();
     renderCart();
 
@@ -426,6 +472,7 @@ async function loginNow() {
     showEl('portalView');
     showEl('logoutBtn');
 
+    renderNav();
     activateTab('dashboard');
 
     await Promise.allSettled([
@@ -457,7 +504,7 @@ function logoutNow() {
 
   setText('sessionStatus', 'Signed out');
   setText('sessionRole', '—');
-  setText('userBadge', 'Portal User');
+  setText('userBadge', '👋 Hello, User');
 }
 
 async function submitOrder() {
