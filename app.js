@@ -99,9 +99,7 @@ function authPayload(extra = {}) {
 }
 
 async function api(action, payload = {}) {
-  if (!state.apiUrl) {
-    throw new Error('Missing API URL.');
-  }
+  if (!state.apiUrl) throw new Error('Missing API URL.');
 
   const response = await fetch(state.apiUrl, {
     method: 'POST',
@@ -109,10 +107,7 @@ async function api(action, payload = {}) {
     body: JSON.stringify({ action, payload })
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return await response.json();
 }
 
@@ -157,7 +152,6 @@ function canViewSettings() {
 
 function getVisibleTabs() {
   if (!state.session) return [];
-
   return tabs.filter(tab => {
     if (tab.key === 'ads') return canManageAds();
     if (tab.ownerOnly) return canViewSettings();
@@ -925,65 +919,219 @@ async function loadPayroll() {
   renderPayroll(rows);
 }
 
-function productRowHtml(item = {}) {
-  return `
-    <div class="list-item admin-product-row">
-      <div class="form-grid">
-        <div class="field">
-          <label>Name</label>
-          <input class="admin-product-name" type="text" value="${escapeHtml(item.Name || item.name || '')}">
-        </div>
-        <div class="field">
-          <label>Price</label>
-          <input class="admin-product-price" type="number" step="0.01" value="${Number(item.Price || item.price || 0)}">
-        </div>
-        <div class="field">
-          <label>Active</label>
-          <select class="admin-product-active">
-            <option value="Yes" ${(String(item.Active || item.active || 'Yes') === 'Yes') ? 'selected' : ''}>Yes</option>
-            <option value="No" ${(String(item.Active || item.active || 'Yes') === 'No') ? 'selected' : ''}>No</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  `;
+/* =========================
+   SETTINGS: PRODUCTS MODAL UI
+========================= */
+
+function getAdminProducts() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.products)) state.adminData.products = [];
+  return state.adminData.products;
 }
 
-function employeeRowHtml(item = {}) {
-  return `
-    <div class="list-item admin-employee-row">
-      <div class="form-grid">
-        <div class="field">
-          <label>Name</label>
-          <input class="admin-employee-name" type="text" value="${escapeHtml(item.Name || '')}">
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input class="admin-employee-email" type="text" value="${escapeHtml(item.Email || '')}">
-        </div>
-        <div class="field">
-          <label>Username</label>
-          <input class="admin-employee-username" type="text" value="${escapeHtml(item.Username || '')}">
-        </div>
-        <div class="field">
-          <label>PIN</label>
-          <input class="admin-employee-pin" type="text" value="${escapeHtml(item.PIN || '')}">
-        </div>
-        <div class="field">
-          <label>Role</label>
-          <input class="admin-employee-role" type="text" value="${escapeHtml(item.Role || '')}">
-        </div>
-        <div class="field">
-          <label>Active</label>
-          <select class="admin-employee-active">
-            <option value="Yes" ${(String(item.Active || 'Yes') === 'Yes') ? 'selected' : ''}>Yes</option>
-            <option value="No" ${(String(item.Active || 'Yes') === 'No') ? 'selected' : ''}>No</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  `;
+function getAdminEmployees() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.employees)) state.adminData.employees = [];
+  return state.adminData.employees;
 }
+
+function renderProductsAdminList() {
+  const wrap = $('productsAdminList');
+  if (!wrap) return;
+
+  const products = getAdminProducts();
+
+  if (!products.length) {
+    wrap.innerHTML = `
+      <div class="list-item">
+        <p>No products yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = products.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || item.name || 'Unnamed Product')}</div>
+        <div class="settings-entry-sub">${money(item.Price || item.price || 0)} · ${escapeHtml(item.Active || item.active || 'Yes')}</div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-product="${index}">Update</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-open-product]').forEach(btn => {
+    btn.addEventListener('click', () => openProductModal(Number(btn.dataset.openProduct)));
+  });
+}
+
+function openProductModal(index) {
+  const items = getAdminProducts();
+  const item = index >= 0 ? (items[index] || {}) : {};
+
+  setValue('productModalIndex', index >= 0 ? index : '');
+  setValue('productModalName', item.Name || item.name || '');
+  setValue('productModalPrice', Number(item.Price || item.price || 0));
+  setValue('productModalActive', item.Active || item.active || 'Yes');
+
+  const title = index >= 0 ? `UPDATE ${String(item.Name || item.name || 'PRODUCT').toUpperCase()}` : 'ADD PRODUCT';
+  setText('productModalTitle', title);
+
+  showEl('productModalBackdrop');
+  showEl('productModal');
+}
+
+function closeProductModal() {
+  hideEl('productModalBackdrop');
+  hideEl('productModal');
+}
+
+function saveProductModal() {
+  const items = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  const item = {
+    Name: getValue('productModalName').trim(),
+    Price: Number(getValue('productModalPrice') || 0),
+    Active: getValue('productModalActive') || 'Yes'
+  };
+
+  if (!item.Name) {
+    alert('Product name is required.');
+    return;
+  }
+
+  if (index >= 0) items[index] = item;
+  else items.push(item);
+
+  renderProductsAdminList();
+  closeProductModal();
+}
+
+function deleteProductModal() {
+  const items = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  if (index < 0) {
+    closeProductModal();
+    return;
+  }
+
+  const ok = window.confirm('Delete this product?');
+  if (!ok) return;
+
+  items.splice(index, 1);
+  renderProductsAdminList();
+  closeProductModal();
+}
+
+/* =========================
+   SETTINGS: EMPLOYEES MODAL UI
+========================= */
+
+function renderEmployeesAdminList() {
+  const wrap = $('employeesAdminList');
+  if (!wrap) return;
+
+  const employees = getAdminEmployees();
+
+  if (!employees.length) {
+    wrap.innerHTML = `
+      <div class="list-item">
+        <p>No employees yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = employees.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || 'Unnamed Employee')}</div>
+        <div class="settings-entry-sub">${escapeHtml(item.Role || 'Employee')} · ${escapeHtml(item.Active || 'Yes')}</div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-employee="${index}">Update</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-open-employee]').forEach(btn => {
+    btn.addEventListener('click', () => openEmployeeModal(Number(btn.dataset.openEmployee)));
+  });
+}
+
+function openEmployeeModal(index) {
+  const items = getAdminEmployees();
+  const item = index >= 0 ? (items[index] || {}) : {};
+
+  setValue('employeeModalIndex', index >= 0 ? index : '');
+  setValue('employeeModalName', item.Name || '');
+  setValue('employeeModalEmail', item.Email || '');
+  setValue('employeeModalUsername', item.Username || '');
+  setValue('employeeModalPin', item.PIN || '');
+  setValue('employeeModalRole', item.Role || '');
+  setValue('employeeModalActive', item.Active || 'Yes');
+
+  const title = index >= 0 ? `UPDATE ${String(item.Name || 'EMPLOYEE').toUpperCase()}` : 'ADD EMPLOYEE';
+  setText('employeeModalTitle', title);
+
+  showEl('employeeModalBackdrop');
+  showEl('employeeModal');
+}
+
+function closeEmployeeModal() {
+  hideEl('employeeModalBackdrop');
+  hideEl('employeeModal');
+}
+
+function saveEmployeeModal() {
+  const items = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  const item = {
+    Name: getValue('employeeModalName').trim(),
+    Email: getValue('employeeModalEmail').trim(),
+    Username: getValue('employeeModalUsername').trim(),
+    PIN: getValue('employeeModalPin').trim(),
+    Role: getValue('employeeModalRole').trim(),
+    Active: getValue('employeeModalActive') || 'Yes'
+  };
+
+  if (!item.Name && !item.Email) {
+    alert('Employee name or email is required.');
+    return;
+  }
+
+  if (index >= 0) items[index] = item;
+  else items.push(item);
+
+  renderEmployeesAdminList();
+  closeEmployeeModal();
+}
+
+function deleteEmployeeModal() {
+  const items = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  if (index < 0) {
+    closeEmployeeModal();
+    return;
+  }
+
+  const ok = window.confirm('Delete this employee?');
+  if (!ok) return;
+
+  items.splice(index, 1);
+  renderEmployeesAdminList();
+  closeEmployeeModal();
+}
+
+/* =========================
+   SETTINGS: PAYMENT METHODS
+========================= */
 
 function paymentMethodRowHtml(item = {}) {
   return `
@@ -1005,26 +1153,14 @@ function paymentMethodRowHtml(item = {}) {
   `;
 }
 
-function renderAdminLists() {
-  const productsWrap = $('productsAdminList');
-  const employeesWrap = $('employeesAdminList');
+function renderPaymentMethodsAdminList() {
   const paymentWrap = $('paymentMethodsAdminList');
+  if (!paymentWrap) return;
 
-  const products = state.adminData?.products || [];
-  const employees = state.adminData?.employees || [];
   const paymentMethods = state.adminData?.paymentMethods || [];
-
-  if (productsWrap) {
-    productsWrap.innerHTML = products.length ? products.map(productRowHtml).join('') : productRowHtml();
-  }
-
-  if (employeesWrap) {
-    employeesWrap.innerHTML = employees.length ? employees.map(employeeRowHtml).join('') : employeeRowHtml();
-  }
-
-  if (paymentWrap) {
-    paymentWrap.innerHTML = paymentMethods.length ? paymentMethods.map(paymentMethodRowHtml).join('') : paymentMethodRowHtml();
-  }
+  paymentWrap.innerHTML = paymentMethods.length
+    ? paymentMethods.map(paymentMethodRowHtml).join('')
+    : paymentMethodRowHtml();
 }
 
 function fillAdminFields() {
@@ -1083,25 +1219,27 @@ async function loadAdminData() {
 
   state.adminData = result;
   fillAdminFields();
-  renderAdminLists();
+  renderProductsAdminList();
+  renderEmployeesAdminList();
+  renderPaymentMethodsAdminList();
 }
 
-function collectProductsFromUI() {
-  return Array.from(document.querySelectorAll('.admin-product-row')).map(row => ({
-    Name: row.querySelector('.admin-product-name')?.value || '',
-    Price: Number(row.querySelector('.admin-product-price')?.value || 0),
-    Active: row.querySelector('.admin-product-active')?.value || 'Yes'
+function collectProductsForSave() {
+  return getAdminProducts().map(item => ({
+    Name: item.Name || '',
+    Price: Number(item.Price || 0),
+    Active: item.Active || 'Yes'
   })).filter(item => String(item.Name).trim());
 }
 
-function collectEmployeesFromUI() {
-  return Array.from(document.querySelectorAll('.admin-employee-row')).map(row => ({
-    Name: row.querySelector('.admin-employee-name')?.value || '',
-    Email: row.querySelector('.admin-employee-email')?.value || '',
-    Username: row.querySelector('.admin-employee-username')?.value || '',
-    PIN: row.querySelector('.admin-employee-pin')?.value || '',
-    Role: row.querySelector('.admin-employee-role')?.value || '',
-    Active: row.querySelector('.admin-employee-active')?.value || 'Yes'
+function collectEmployeesForSave() {
+  return getAdminEmployees().map(item => ({
+    Name: item.Name || '',
+    Email: item.Email || '',
+    Username: item.Username || '',
+    PIN: item.PIN || '',
+    Role: item.Role || '',
+    Active: item.Active || 'Yes'
   })).filter(item => String(item.Name).trim() || String(item.Email).trim());
 }
 
@@ -1183,7 +1321,7 @@ async function saveUITextNow() {
 
 async function saveProductsNow() {
   const result = await api('saveProducts', authPayload({
-    products: collectProductsFromUI()
+    products: collectProductsForSave()
   }));
   alert(result.message || 'Products saved.');
   if (result.ok) await loadAdminData();
@@ -1191,7 +1329,7 @@ async function saveProductsNow() {
 
 async function saveEmployeesNow() {
   const result = await api('saveEmployees', authPayload({
-    employees: collectEmployeesFromUI()
+    employees: collectEmployeesForSave()
   }));
   alert(result.message || 'Employees saved.');
   if (result.ok) await loadAdminData();
@@ -1206,18 +1344,30 @@ async function savePaymentMethodsNow() {
 }
 
 function addProductRow() {
-  const wrap = $('productsAdminList');
-  if (wrap) wrap.insertAdjacentHTML('beforeend', productRowHtml());
+  openProductModal(-1);
 }
 
 function addEmployeeRow() {
-  const wrap = $('employeesAdminList');
-  if (wrap) wrap.insertAdjacentHTML('beforeend', employeeRowHtml());
+  openEmployeeModal(-1);
 }
 
 function addPaymentMethodRow() {
   const wrap = $('paymentMethodsAdminList');
   if (wrap) wrap.insertAdjacentHTML('beforeend', paymentMethodRowHtml());
+}
+
+function wireModalDismiss() {
+  $('productModalClose')?.addEventListener('click', closeProductModal);
+  $('productModalCancel')?.addEventListener('click', closeProductModal);
+  $('productModalSave')?.addEventListener('click', saveProductModal);
+  $('productModalDelete')?.addEventListener('click', deleteProductModal);
+  $('productModalBackdrop')?.addEventListener('click', closeProductModal);
+
+  $('employeeModalClose')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalCancel')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalSave')?.addEventListener('click', saveEmployeeModal);
+  $('employeeModalDelete')?.addEventListener('click', deleteEmployeeModal);
+  $('employeeModalBackdrop')?.addEventListener('click', closeEmployeeModal);
 }
 
 function wireEvents() {
@@ -1258,6 +1408,8 @@ function wireEvents() {
   $('loginPin')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') loginNow();
   });
+
+  wireModalDismiss();
 }
 
 function init() {
