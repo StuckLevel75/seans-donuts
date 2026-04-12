@@ -409,6 +409,51 @@ function hasRaffleTicketInCart() {
   );
 }
 
+async function refreshPortalData(options = {}) {
+  if (!state.session) return;
+
+  const keepTab = options.keepTab !== false;
+  const currentTab = state.activeTab || 'dashboard';
+
+  showLoading('REFRESHING', 'Reloading portal data...');
+
+  try {
+    const bootstrap = await api('getPortalBootstrap', {});
+    if (!bootstrap.ok) {
+      hideLoading();
+      alert(bootstrap.message || 'Could not refresh portal.');
+      return;
+    }
+
+    state.bootstrap = bootstrap;
+    state.products = bootstrap.products || [];
+    state.paymentMethods = bootstrap.settings?.paymentMethods || state.paymentMethods;
+    state.mileageRate = Number(bootstrap.settings?.mileageRate || 0);
+
+    fillPortalHeader();
+    renderDashboard();
+    renderPaymentMethods();
+    buildProductGrid();
+    renderCart();
+    renderNav();
+
+    if (keepTab) {
+      await activateTab(currentTab);
+    } else {
+      await activateTab('dashboard');
+    }
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    alert(error.message || 'Could not refresh portal.');
+  }
+}
+
+async function portalRefreshNow() {
+  await refreshPortalData({ keepTab: true });
+}
+
 async function loginNow() {
   if (!state.apiUrl) {
     alert('Missing API URL.');
@@ -456,6 +501,7 @@ async function loginNow() {
     hideEl('loginView');
     showEl('portalView');
     showEl('logoutBtn');
+    showEl('portalRefreshBtn');
 
     renderNav();
     await activateTab('dashboard');
@@ -484,6 +530,7 @@ function logoutNow() {
   showEl('loginView');
   hideEl('portalView');
   hideEl('logoutBtn');
+  hideEl('portalRefreshBtn');
 
   setText('sessionStatus', 'Signed out');
   setText('sessionRole', '—');
@@ -1176,6 +1223,8 @@ function addPaymentMethodRow() {
 function wireEvents() {
   $('loginBtn')?.addEventListener('click', loginNow);
   $('logoutBtn')?.addEventListener('click', logoutNow);
+  $('portalRefreshBtn')?.addEventListener('click', portalRefreshNow);
+
   $('submitOrderBtn')?.addEventListener('click', submitOrder);
   $('searchOrdersBtn')?.addEventListener('click', loadOrders);
   $('lookupRewardsBtn')?.addEventListener('click', loadRewards);
