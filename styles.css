@@ -79,7 +79,7 @@ textarea {
 .btn {
   border: 0;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 11px 14px;
   cursor: pointer;
   font-weight: 700;
 }
@@ -101,9 +101,9 @@ textarea {
 }
 
 .topbar {
-  padding: 18px 24px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.88);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
@@ -113,7 +113,7 @@ textarea {
 .topbar-stacked {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   align-items: stretch;
 }
 
@@ -121,7 +121,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -134,24 +134,36 @@ textarea {
 .brand-wrap {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .brand-mark {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(180deg, #fff2df 0%, #f6d8aa 100%);
-  font-size: 28px;
+  font-size: 24px;
   border: 1px solid var(--border);
+}
+
+.brand-wrap h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.brand-wrap p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .topbar-right-header {
@@ -162,8 +174,8 @@ textarea {
 .header-meta-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 14px;
   border-radius: 999px;
   background: linear-gradient(180deg, #fff7e8 0%, #fdeccf 100%);
   border: 1px solid var(--border);
@@ -173,12 +185,12 @@ textarea {
 .header-meta-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
 }
 
 .header-meta-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -186,14 +198,14 @@ textarea {
 }
 
 .header-meta-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--text);
 }
 
 .header-meta-divider {
   width: 1px;
-  height: 22px;
+  height: 18px;
   background: rgba(108, 67, 48, 0.18);
 }
 
@@ -201,20 +213,13 @@ textarea {
   font-weight: 700;
 }
 
-.status-chip,
-.user-chip {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: #fffaf5;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.header-hello-item .header-meta-value {
+  color: var(--secondary);
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #2cbf6b;
 }
@@ -223,17 +228,17 @@ textarea {
   width: 100%;
   background: linear-gradient(180deg, #fff7e8 0%, #fdeccf 100%);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 14px 18px;
+  border-radius: 16px;
+  padding: 12px 16px;
   box-shadow: var(--shadow);
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .main-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 24px;
-  padding: 24px;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  padding: 20px;
 }
 
 .sidebar {
@@ -496,45 +501,45 @@ textarea {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 6, 4, 0.82);
+  background: rgba(20, 12, 6, 0.54);
   display: grid;
   place-items: center;
   z-index: 9999;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(3px);
 }
 
 .loading-card {
-  width: min(90vw, 320px);
-  background: linear-gradient(180deg, #13100d 0%, #0d0a08 100%);
-  border: 1px solid rgba(216, 171, 98, 0.22);
-  border-radius: 30px;
-  padding: 28px 22px;
-  box-shadow: 0 0 0 1px rgba(216,171,98,0.08), 0 18px 50px rgba(0,0,0,0.45);
+  width: min(88vw, 240px);
+  background: linear-gradient(180deg, #2a1c12 0%, #1b120b 100%);
+  border: 1px solid rgba(242, 140, 24, 0.28);
+  border-radius: 24px;
+  padding: 18px 16px;
+  box-shadow: 0 0 0 1px rgba(242,140,24,0.08), 0 16px 40px rgba(0,0,0,0.34);
   text-align: center;
 }
 
 .loading-spinner {
-  width: 52px;
-  height: 52px;
-  margin: 0 auto 18px;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 12px;
   border-radius: 50%;
-  border: 4px solid rgba(216, 171, 98, 0.18);
-  border-top-color: #d8ab62;
+  border: 4px solid rgba(242, 140, 24, 0.16);
+  border-top-color: #f2b357;
   animation: sdSpin 0.9s linear infinite;
-  box-shadow: 0 0 18px rgba(216,171,98,0.18);
+  box-shadow: 0 0 14px rgba(242,140,24,0.18);
 }
 
 .loading-title {
-  color: #f0c979;
-  font-size: 34px;
+  color: #f2c06d;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 
 .loading-text {
-  color: rgba(255,255,255,0.84);
-  font-size: 18px;
+  color: rgba(255,255,255,0.82);
+  font-size: 13px;
 }
 
 @keyframes sdSpin {
@@ -567,7 +572,7 @@ textarea {
 
   .header-meta-bar {
     width: 100%;
-    border-radius: 20px;
+    border-radius: 18px;
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -576,7 +581,6 @@ textarea {
     display: none;
   }
 
-  .user-chip,
   .topbar-right-header .btn {
     width: 100%;
     justify-content: center;
