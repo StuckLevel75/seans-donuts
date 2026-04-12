@@ -1,641 +1,1422 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sean's Donuts Portal</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-card">
-      <div class="loading-spinner"></div>
-      <div class="loading-title" id="loadingTitle">SAVING</div>
-      <div class="loading-text" id="loadingText">Please wait...</div>
-    </div>
-  </div>
+const state = {
+  apiUrl: localStorage.getItem('sd_api_url') || '',
+  session: null,
+  bootstrap: null,
+  adminData: null,
+  products: [],
+  cart: {},
+  paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
+  activeTab: 'dashboard',
+  raffleEntries: [],
+  raffleWheelEntries: [],
+  raffleWinner: null,
+  wheelRotation: 0,
+  ads: [],
+  payrollRows: [],
+  mileageRate: 0
+};
 
-  <div class="app-shell">
-    <section id="loginView" class="login-page">
-      <div class="login-card-v1">
-        <div class="login-logo-v1" id="loginLogo">🍩</div>
-        <h1 id="loginTitle">Sean's Donuts Portal</h1>
-        <p id="loginSubtitle">Sign in with your username or email and PIN.</p>
+const tabs = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'pos', label: 'POS' },
+  { key: 'orders', label: 'Orders' },
+  { key: 'rewards', label: 'Rewards' },
+  { key: 'raffle', label: 'Raffle' },
+  { key: 'ads', label: 'Ads' },
+  { key: 'payroll', label: 'Payroll' },
+  { key: 'settings', label: 'Settings', ownerOnly: true }
+];
 
-        <div class="login-fields">
-          <input id="loginValue" type="text" placeholder="Username or Email" />
-          <input id="loginPin" type="password" placeholder="PIN" />
+function $(id) {
+  return document.getElementById(id);
+}
+
+function money(v) {
+  return `$${Number(v || 0).toFixed(2)}`;
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.textContent = value == null ? '' : String(value);
+}
+
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value == null ? '' : String(value);
+}
+
+function getValue(id, fallback = '') {
+  const el = $(id);
+  return el ? el.value : fallback;
+}
+
+function showEl(id) {
+  const el = $(id);
+  if (el) el.classList.remove('hidden');
+}
+
+function hideEl(id) {
+  const el = $(id);
+  if (el) el.classList.add('hidden');
+}
+
+function showMessage(elId, text, type = 'info') {
+  const el = $(elId);
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = text ? `message show ${type}` : 'message';
+}
+
+function showLoading(title = 'LOADING', text = 'Please wait...') {
+  const overlay = $('loadingOverlay');
+  if (!overlay) return;
+  setText('loadingTitle', title);
+  setText('loadingText', text);
+  overlay.classList.remove('hidden');
+}
+
+function hideLoading() {
+  const overlay = $('loadingOverlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+}
+
+function authPayload(extra = {}) {
+  return {
+    email: state.session?.employee?.email || state.session?.employee?.username || '',
+    pin: getValue('loginPin').trim(),
+    ...extra
+  };
+}
+
+async function api(action, payload = {}) {
+  if (!state.apiUrl) throw new Error('Missing API URL.');
+
+  const response = await fetch(state.apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload })
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.json();
+}
+
+function getPerms() {
+  return state.session?.permissions || {};
+}
+
+function getRole() {
+  return String(state.session?.employee?.role || '').trim().toLowerCase();
+}
+
+function isStrictOwner() {
+  const perms = getPerms();
+  return !!(perms.isOwner || getRole() === 'owner');
+}
+
+function canManageAds() {
+  const perms = getPerms();
+  const role = getRole();
+  return !!(
+    perms.canManageAds ||
+    perms.isOwner ||
+    perms.isAdmin ||
+    perms.isManager ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'manager'
+  );
+}
+
+function canViewSettings() {
+  const perms = getPerms();
+  const role = getRole();
+  return !!(
+    perms.canViewSettings ||
+    perms.isOwner ||
+    perms.isAdmin ||
+    role === 'owner' ||
+    role === 'admin'
+  );
+}
+
+function getVisibleTabs() {
+  if (!state.session) return [];
+  return tabs.filter(tab => {
+    if (tab.key === 'ads') return canManageAds();
+    if (tab.ownerOnly) return canViewSettings();
+    return true;
+  });
+}
+
+function renderNav() {
+  const nav = $('navTabs');
+  if (!nav) return;
+
+  const visibleTabs = getVisibleTabs();
+
+  nav.innerHTML = visibleTabs.map(tab => `
+    <button
+      type="button"
+      class="nav-btn ${state.activeTab === tab.key ? 'active' : ''}"
+      data-tab="${escapeHtml(tab.key)}"
+    >
+      ${escapeHtml(tab.label)}
+    </button>
+  `).join('');
+
+  nav.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
+}
+
+async function activateTab(tabKey) {
+  state.activeTab = tabKey;
+
+  const sectionMap = {
+    dashboard: 'dashboardSection',
+    pos: 'posSection',
+    orders: 'ordersSection',
+    rewards: 'rewardsSection',
+    raffle: 'raffleSection',
+    ads: 'adsSection',
+    payroll: 'payrollSection',
+    settings: 'settingsSection'
+  };
+
+  Object.values(sectionMap).forEach(id => {
+    const el = $(id);
+    if (el) el.classList.add('hidden');
+  });
+
+  const activeSection = $(sectionMap[tabKey]);
+  if (activeSection) activeSection.classList.remove('hidden');
+
+  renderNav();
+
+  if (tabKey === 'orders') await loadOrders();
+  if (tabKey === 'raffle') await loadRaffle();
+  if (tabKey === 'ads') await loadAds();
+  if (tabKey === 'payroll') await loadPayroll();
+  if (tabKey === 'settings') await loadAdminData();
+}
+
+function fillPortalHeader() {
+  const settings = state.bootstrap?.settings || {};
+  const ui = settings.uiText || {};
+  const employee = state.session?.employee || {};
+  const prefs = state.session?.portalPrefs || {};
+
+  const portalName = settings.portalName || "Sean's Donuts";
+  const portalSubtitle = settings.portalSubtitle || 'Employee Portal';
+  const announcement = prefs.announcement || settings.announcement || 'Welcome to Sean\'s Donuts Portal';
+  const bankId = prefs.bankId || settings.bankId || '24596194';
+  const logoEmoji = ui.logoEmoji || '🍩';
+  const employeeName = employee.name || 'User';
+
+  state.mileageRate = Number(settings.mileageRate || 0);
+
+  setText('portalName', portalName);
+  setText('portalSubtitle', portalSubtitle);
+  setText('announcementBar', announcement);
+  setText('bankIdText', bankId);
+  setText('dashboardPortalName', portalName);
+  setText('dashboardPortalSubtitle', portalSubtitle);
+  setText('dashboardBankId', bankId);
+
+  setText('sessionStatus', 'Signed in');
+  setText('sessionRole', employee.role || 'Employee');
+  setText('userBadge', `👋 Hello, ${employeeName}`);
+
+  setText('welcomeTitle', ui.dashboardTitle || `Welcome, ${employeeName}`);
+  setText('dashboardSubtitleText', ui.dashboardSubtitle || 'Portal overview');
+  setText('posTitleText', ui.posTitle || 'POS');
+  setText('posSubtitleText', ui.posSubtitle || 'Create a new order');
+  setText('ordersTitleText', ui.ordersTitle || 'Orders');
+  setText('ordersSubtitleText', ui.ordersSubtitle || 'Search recent orders');
+  setText('rewardsTitleText', ui.rewardsTitle || 'Rewards');
+  setText('rewardsSubtitleText', ui.rewardsSubtitle || 'Lookup customer rewards');
+  setText('raffleTitleText', ui.raffleTitle || 'Raffle');
+  setText('raffleSubtitleText', ui.raffleSubtitle || 'Recent raffle entries');
+  setText('payrollTitleText', ui.payrollTitle || 'Payroll');
+  setText('payrollSubtitleText', ui.payrollSubtitle || 'Weekly payroll summary');
+  setText('settingsTitleText', ui.settingsTitle || 'Settings');
+  setText('settingsSubtitleText', ui.settingsSubtitle || 'Owner/Admin controls');
+
+  setText('loginTitle', ui.loginTitle || portalName);
+  setText('loginSubtitle', ui.loginSubtitle || 'Sign in with your username or email and PIN.');
+
+  setText('loginLogo', logoEmoji);
+  setText('brandLogo', logoEmoji);
+
+  setValue('settingsPortalName', portalName);
+  setValue('settingsPortalSubtitle', portalSubtitle);
+  setValue('settingsAnnouncement', announcement);
+  setValue('settingsBankId', bankId);
+  setValue('settingsMileageRate', state.mileageRate);
+
+  if (isStrictOwner()) showEl('resetRaffleBtn');
+  else hideEl('resetRaffleBtn');
+}
+
+function renderDashboard() {
+  const stats = state.bootstrap?.stats || {};
+  const announcements = state.bootstrap?.announcements || [];
+
+  setText('statOrders', Number(stats.totalOrders || 0));
+  setText('statSales', money(stats.totalSales || 0));
+  setText('statEmployees', Number(stats.activeEmployees || 0));
+  setText('statRaffle', Number(stats.raffleEntries || 0));
+
+  const list = $('announcementsList');
+  if (!list) return;
+
+  list.innerHTML = announcements.length
+    ? announcements.map(item => `
+        <div class="list-item">
+          <h4>${escapeHtml(item.title || 'Announcement')}</h4>
+          <p>${escapeHtml(item.message || '')}</p>
         </div>
+      `).join('')
+    : '<div class="list-item"><p>No active announcements.</p></div>';
+}
 
-        <button id="loginBtn" class="login-btn-v1" type="button">Login</button>
-        <div id="loginMsg" class="message"></div>
+function renderPaymentMethods() {
+  const methods = state.bootstrap?.settings?.paymentMethods || [];
+  state.paymentMethods = methods;
+
+  const select = $('paymentMethod');
+  if (!select) return;
+
+  select.innerHTML = methods.map(method => {
+    const value = method.Name || method.name || method;
+    return `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`;
+  }).join('');
+}
+
+function buildProductGrid() {
+  const grid = $('productGrid');
+  if (!grid) return;
+
+  if (!Array.isArray(state.products) || !state.products.length) {
+    grid.innerHTML = '<div class="list-item"><p>No products yet.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = state.products.map((product, index) => {
+    const qty = Number(state.cart[product.name] || 0);
+
+    return `
+      <div class="product-card">
+        <h4>${escapeHtml(product.name || 'Product')}</h4>
+        <div class="product-price">${money(product.price || 0)}</div>
+        <div class="qty-row">
+          <button type="button" data-qty="down" data-index="${index}">−</button>
+          <div class="qty-pill">${qty}</div>
+          <button type="button" data-qty="up" data-index="${index}">+</button>
+        </div>
       </div>
-    </section>
+    `;
+  }).join('');
 
-    <section id="portalView" class="hidden">
-      <header class="topbar topbar-stacked">
-        <div class="topbar-main">
-          <div class="brand-wrap">
-            <div class="brand-mark" id="brandLogo">🍩</div>
-            <div>
-              <h1 id="portalName">Sean's Donuts</h1>
-              <p id="portalSubtitle">Employee Portal</p>
-            </div>
-          </div>
+  grid.querySelectorAll('[data-qty]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const product = state.products[Number(btn.dataset.index)];
+      if (!product) return;
 
-          <div class="topbar-right topbar-right-header">
-            <div class="header-meta-bar">
-              <div class="header-meta-item">
-                <span class="header-meta-label">Role</span>
-                <span id="sessionRole" class="header-meta-value">—</span>
-              </div>
+      const current = Number(state.cart[product.name] || 0);
+      const next = btn.dataset.qty === 'up' ? current + 1 : Math.max(0, current - 1);
 
-              <div class="header-meta-divider"></div>
+      if (next <= 0) delete state.cart[product.name];
+      else state.cart[product.name] = next;
 
-              <div class="header-meta-item">
-                <span class="header-meta-label">Bank ID</span>
-                <span id="bankIdText" class="header-meta-value">24596194</span>
-              </div>
+      buildProductGrid();
+      renderCart();
+    });
+  });
+}
 
-              <div class="header-meta-divider"></div>
+function getMilesInput() {
+  return Number(getValue('mileageInput', 0) || 0);
+}
 
-              <div class="header-meta-item header-status-item">
-                <span class="dot"></span>
-                <span id="sessionStatus" class="header-meta-value">Signed out</span>
-              </div>
+function getMileageCharge() {
+  return getMilesInput() * Number(state.mileageRate || 0);
+}
 
-              <div class="header-meta-divider"></div>
+function renderCart() {
+  const list = $('cartList');
+  if (!list) return;
 
-              <div class="header-meta-item header-hello-item">
-                <span id="userBadge" class="header-meta-value">👋 Hello, User</span>
-              </div>
-            </div>
+  const items = Object.keys(state.cart)
+    .filter(name => Number(state.cart[name]) > 0)
+    .map(name => {
+      const product = state.products.find(p => p.name === name) || {};
+      const qty = Number(state.cart[name] || 0);
+      const price = Number(product.price || 0);
 
-            <button id="portalRefreshBtn" class="btn btn-secondary hidden" type="button">Refresh Portal</button>
-            <button id="logoutBtn" class="btn btn-danger hidden" type="button">Logout</button>
+      return {
+        name,
+        qty,
+        price,
+        total: qty * price
+      };
+    });
+
+  list.innerHTML = items.length
+    ? items.map(item => `
+        <div class="list-item">
+          <h4>${escapeHtml(item.name)}</h4>
+          <p>${item.qty} × ${money(item.price)} = <strong>${money(item.total)}</strong></p>
+        </div>
+      `).join('')
+    : '<div class="list-item"><p>Empty cart</p></div>';
+
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const mileage = getMileageCharge();
+  const amountPaid = Number(getValue('amountPaidInput', 0) || 0);
+  const discount = Number(getValue('discountInput', 0) || 0);
+  const tip = Number(getValue('tipInput', 0) || 0);
+  const total = Math.max(0, subtotal + mileage - discount + tip);
+
+  setText('subtotalText', money(subtotal));
+  setText('mileageText', money(mileage));
+  setText('discountText', money(discount));
+  setText('tipText', money(tip));
+  setText('amountPaidText', money(amountPaid));
+  setText('totalText', money(total));
+}
+
+function hasRaffleTicketInCart() {
+  return Object.keys(state.cart).some(name =>
+    String(name).trim().toLowerCase() === 'raffle ticket' && Number(state.cart[name]) > 0
+  );
+}
+
+async function refreshPortalData(options = {}) {
+  if (!state.session) return;
+
+  const keepTab = options.keepTab !== false;
+  const currentTab = state.activeTab || 'dashboard';
+
+  showLoading('REFRESHING', 'Reloading portal data...');
+
+  try {
+    const bootstrap = await api('getPortalBootstrap', {});
+    if (!bootstrap.ok) {
+      hideLoading();
+      alert(bootstrap.message || 'Could not refresh portal.');
+      return;
+    }
+
+    state.bootstrap = bootstrap;
+    state.products = bootstrap.products || [];
+    state.paymentMethods = bootstrap.settings?.paymentMethods || state.paymentMethods;
+    state.mileageRate = Number(bootstrap.settings?.mileageRate || 0);
+
+    fillPortalHeader();
+    renderDashboard();
+    renderPaymentMethods();
+    buildProductGrid();
+    renderCart();
+    renderNav();
+
+    if (keepTab) {
+      await activateTab(currentTab);
+    } else {
+      await activateTab('dashboard');
+    }
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    alert(error.message || 'Could not refresh portal.');
+  }
+}
+
+async function portalRefreshNow() {
+  await refreshPortalData({ keepTab: true });
+}
+
+async function loginNow() {
+  if (!state.apiUrl) {
+    alert('Missing API URL.');
+    return;
+  }
+
+  showLoading('LOGGING IN', 'Checking your portal access...');
+
+  try {
+    const loginValue = getValue('loginValue').trim();
+    const pin = getValue('loginPin').trim();
+
+    const result = await api('login', {
+      loginValue,
+      email: loginValue,
+      username: loginValue,
+      pin
+    });
+
+    if (!result.ok) {
+      hideLoading();
+      alert(result.message || 'Login failed.');
+      return;
+    }
+
+    state.session = result;
+    state.products = Array.isArray(result.products) ? result.products : [];
+
+    const bootstrap = await api('getPortalBootstrap', {});
+    if (!bootstrap.ok) {
+      hideLoading();
+      alert(bootstrap.message || 'Could not load portal.');
+      return;
+    }
+
+    state.bootstrap = bootstrap;
+    state.products = bootstrap.products || state.products;
+
+    fillPortalHeader();
+    renderDashboard();
+    renderPaymentMethods();
+    buildProductGrid();
+    renderCart();
+
+    hideEl('loginView');
+    showEl('portalView');
+    showEl('logoutBtn');
+    showEl('portalRefreshBtn');
+
+    renderNav();
+    await activateTab('dashboard');
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    alert(error.message || 'Login failed.');
+  }
+}
+
+function logoutNow() {
+  state.session = null;
+  state.bootstrap = null;
+  state.adminData = null;
+  state.products = [];
+  state.cart = {};
+  state.raffleEntries = [];
+  state.raffleWheelEntries = [];
+  state.raffleWinner = null;
+  state.ads = [];
+  state.payrollRows = [];
+  state.activeTab = 'dashboard';
+  state.mileageRate = 0;
+
+  showEl('loginView');
+  hideEl('portalView');
+  hideEl('logoutBtn');
+  hideEl('portalRefreshBtn');
+
+  setText('sessionStatus', 'Signed out');
+  setText('sessionRole', '—');
+  setText('userBadge', '👋 Hello, User');
+}
+
+async function submitOrder() {
+  if (!state.session) return;
+
+  const items = Object.keys(state.cart)
+    .filter(name => Number(state.cart[name]) > 0)
+    .map(name => ({
+      name,
+      qty: Number(state.cart[name])
+    }));
+
+  if (!items.length) {
+    alert('Add at least one product.');
+    return;
+  }
+
+  const customerName = getValue('customerName').trim();
+  const customerDiscord = getValue('customerDiscord').trim();
+  const phoneNumber = getValue('phoneNumber').trim();
+
+  if (hasRaffleTicketInCart() && (!customerName || !customerDiscord || !phoneNumber)) {
+    alert('Raffle ticket orders require customer name, Discord, and phone number.');
+    return;
+  }
+
+  showLoading('SAVING', 'Saving the order...');
+
+  try {
+    const result = await api('submitOrder', authPayload({
+      customerName,
+      customerDiscord,
+      phoneNumber,
+      mileage: getMileageCharge(),
+      amountPaid: Number(getValue('amountPaidInput', 0) || 0),
+      discount: Number(getValue('discountInput', 0) || 0),
+      tip: Number(getValue('tipInput', 0) || 0),
+      paymentMethod: getValue('paymentMethod'),
+      notes: getValue('notes').trim(),
+      items
+    }));
+
+    hideLoading();
+
+    if (!result.ok) {
+      alert(result.message || 'Order failed.');
+      return;
+    }
+
+    state.cart = {};
+    setValue('customerName', '');
+    setValue('customerDiscord', '');
+    setValue('phoneNumber', '');
+    setValue('mileageInput', '0');
+    setValue('amountPaidInput', '0');
+    setValue('discountInput', '0');
+    setValue('tipInput', '0');
+    setValue('notes', '');
+
+    buildProductGrid();
+    renderCart();
+    await loadOrders();
+    await loadRaffle();
+
+    alert(result.message || 'Order submitted.');
+  } catch (error) {
+    hideLoading();
+    alert(error.message || 'Order failed.');
+  }
+}
+
+async function loadOrders() {
+  if (!state.session) return;
+
+  const res = await api('searchOrders', authPayload({
+    query: getValue('orderSearchInput').trim()
+  }));
+
+  const rows = res.results || [];
+  const wrap = $('ordersList');
+  if (!wrap) return;
+
+  wrap.innerHTML = rows.length ? rows.map(r => `
+    <details class="settings-popout">
+      <summary>
+        <span class="settings-summary-left">
+          <span class="settings-icon">🧾</span>
+          <span>${escapeHtml(r['Order Number'] || 'Order')} — ${escapeHtml(r['Customer Name'] || 'No Name')}</span>
+        </span>
+      </summary>
+      <div class="settings-popout-body">
+        <p><b>Date:</b> ${escapeHtml(r['Timestamp'] || '')}</p>
+        <p><b>Employee:</b> ${escapeHtml(r['Employee Name'] || '')}</p>
+        <p><b>Discord:</b> ${escapeHtml(r['Customer Discord'] || '')}</p>
+        <p><b>Phone:</b> ${escapeHtml(r['Phone Number'] || '')}</p>
+        <p><b>Payment:</b> ${escapeHtml(r['Payment Method'] || '')}</p>
+        <p><b>Subtotal:</b> ${money(r['Subtotal'])}</p>
+        <p><b>Discount:</b> ${money(r['Discount'])}</p>
+        <p><b>Tip:</b> ${money(r['Tip'])}</p>
+        <p><b>Mileage:</b> ${money(r['Mileage'])}</p>
+        <p><b>Total:</b> ${money(r['Total'])}</p>
+        <p><b>Notes:</b> ${escapeHtml(r['Notes'] || '')}</p>
+      </div>
+    </details>
+  `).join('') : '<div class="list-item"><p>No orders loaded.</p></div>';
+}
+
+function renderRewardsBlank() {
+  const wrap = $('rewardsResultCard');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="list-item"><p>Search a customer to view rewards.</p></div>';
+}
+
+async function loadRewards() {
+  if (!state.session) return;
+
+  const customerName = getValue('rewardCustomerName').trim();
+  if (!customerName) {
+    renderRewardsBlank();
+    return;
+  }
+
+  const res = await api('lookupRewards', authPayload({ customerName }));
+  const r = res.reward || {};
+  const wrap = $('rewardsResultCard');
+  if (!wrap) return;
+
+  wrap.innerHTML = `
+    <details class="settings-popout" open>
+      <summary>
+        <span class="settings-summary-left">
+          <span class="settings-icon">🎁</span>
+          <span>${escapeHtml(customerName)}</span>
+        </span>
+      </summary>
+      <div class="settings-popout-body">
+        <p><b>Visits:</b> ${r.visits || 0}</p>
+        <p><b>Progress:</b> ${r.visitProgress || 0}/10</p>
+        <p><b>Available:</b> ${r.rewardsAvailable || 0}</p>
+        <p><b>Redeemed:</b> ${r.totalRewardsRedeemed || 0}</p>
+        <p><b>Last Visit:</b> ${escapeHtml(r.lastVisit || '—')}</p>
+        <p><b>Last Order:</b> ${escapeHtml(r.lastOrderNumber || '—')}</p>
+      </div>
+    </details>
+  `;
+}
+
+function expandRaffleWheelEntries(entries) {
+  const expanded = [];
+  (entries || []).forEach(entry => {
+    const qty = Math.max(1, Number(entry.ticketsBought || 0));
+    for (let i = 0; i < qty; i++) expanded.push(entry);
+  });
+  return expanded;
+}
+
+function drawRaffleWheel(entries) {
+  const canvas = $('raffleWheel');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = 130;
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (!entries || !entries.length) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a1c12';
+    ctx.fill();
+    ctx.strokeStyle = '#d8ab62';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#f3c87c';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No Entries', cx, cy + 6);
+    return;
+  }
+
+  const anglePer = (Math.PI * 2) / entries.length;
+  const rotation = state.wheelRotation || 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const start = rotation + (i * anglePer);
+    const end = start + anglePer;
+    const label = String(entries[i].customerName || `Entry ${i + 1}`);
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#f28c18' : '#6c4330';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + anglePer / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(label.slice(0, 14), radius - 10, 4);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#6c4330';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+function renderRaffleWinner() {
+  const box = $('raffleWinnerBox');
+  if (!box) return;
+
+  const winner = state.raffleWinner;
+  box.innerHTML = winner
+    ? `
+      <div class="list-item">
+        <h4>${escapeHtml(winner.customerName || 'Winner')}</h4>
+        <p><strong>Discord:</strong> ${escapeHtml(winner.customerDiscord || '—')}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(winner.phoneNumber || '—')}</p>
+        <p><strong>Tickets:</strong> ${Number(winner.ticketsBought || 0)}</p>
+        <p><strong>Order:</strong> ${escapeHtml(winner.orderNumber || '—')}</p>
+      </div>
+    `
+    : '<div class="list-item"><p>No winner drawn yet.</p></div>';
+}
+
+async function loadRaffle() {
+  if (!state.session) return;
+
+  const res = await api('loadRaffleOverview', authPayload({}));
+  const rows = res.entries || [];
+
+  state.raffleEntries = rows;
+  state.raffleWheelEntries = expandRaffleWheelEntries(rows);
+  state.raffleWinner = res.winner || null;
+
+  renderRaffleWinner();
+  drawRaffleWheel(state.raffleWheelEntries);
+
+  const list = $('raffleList');
+  if (!list) return;
+
+  list.innerHTML = rows.length
+    ? rows.map(row => `
+      <div class="list-item">
+        <h4>${escapeHtml(row.customerName || 'Entry')}</h4>
+        <p><strong>Discord:</strong> ${escapeHtml(row.customerDiscord || '—')}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(row.phoneNumber || '—')}</p>
+        <p><strong>Tickets:</strong> ${Number(row.ticketsBought || 0)}</p>
+        <p><strong>Order:</strong> ${escapeHtml(row.orderNumber || '—')}</p>
+      </div>
+    `).join('')
+    : '<div class="list-item"><p>No raffle entries loaded.</p></div>';
+}
+
+async function drawRaffleWinnerNow() {
+  const res = await api('drawRaffleWinner', authPayload({}));
+  if (!res.ok) return alert(res.message || 'Could not draw winner.');
+  state.raffleWinner = res.winner || null;
+  renderRaffleWinner();
+}
+
+async function clearRaffleWinnerNow() {
+  const res = await api('clearRaffleWinner', authPayload({}));
+  if (!res.ok) return alert(res.message || 'Could not clear winner.');
+  state.raffleWinner = null;
+  renderRaffleWinner();
+}
+
+async function resetRaffleNow() {
+  const ok = window.confirm('Reset the entire raffle?');
+  if (!ok) return;
+
+  const res = await api('resetRaffle', authPayload({}));
+  if (!res.ok) return alert(res.message || 'Could not reset raffle.');
+  await loadRaffle();
+}
+
+async function loadAds() {
+  if (!state.session) return;
+
+  const res = await api('loadAds', authPayload({}));
+  const list = $('adsList');
+  if (!list) return;
+
+  if (!res.ok) {
+    list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load ads.')}</p></div>`;
+    return;
+  }
+
+  state.ads = res.ads || [];
+  list.innerHTML = state.ads.length
+    ? state.ads.map(ad => `
+        <div class="list-item">
+          <h4>${escapeHtml(ad.Title || '')}</h4>
+          <p>${escapeHtml(ad['Ad Text'] || '')}</p>
+          <p><strong>Status:</strong> ${escapeHtml(ad.Status || '—')}</p>
+          <div class="button-row">
+            <button type="button" class="btn btn-danger" data-delete-ad="${escapeHtml(ad.ID || '')}">Delete</button>
           </div>
         </div>
+      `).join('')
+    : '<div class="list-item"><p>No ads yet.</p></div>';
 
-        <div class="topbar-sub">
-          <div class="announcement-inline">
-            <strong>Announcement:</strong>
-            <span id="announcementBar">Welcome to Sean's Donuts Portal</span>
-          </div>
+  list.querySelectorAll('[data-delete-ad]').forEach(btn => {
+    btn.addEventListener('click', () => deleteAd(btn.dataset.deleteAd));
+  });
+}
+
+async function saveAd() {
+  const res = await api('saveAd', authPayload({
+    title: getValue('adTitle').trim(),
+    text: getValue('adText').trim(),
+    status: getValue('adStatus')
+  }));
+
+  if (!res.ok) return alert(res.message || 'Could not save ad.');
+
+  setValue('adTitle', '');
+  setValue('adText', '');
+  setValue('adStatus', 'Active');
+  await loadAds();
+}
+
+async function deleteAd(id) {
+  const ok = window.confirm('Delete this ad?');
+  if (!ok) return;
+
+  const res = await api('deleteAd', authPayload({ id }));
+  if (!res.ok) return alert(res.message || 'Could not delete ad.');
+  await loadAds();
+}
+
+function renderPayroll(rows) {
+  const list = $('payrollList');
+  if (!list) return;
+
+  const employeeCount = rows.length;
+  const totalOrders = rows.reduce((sum, row) => sum + Number(row.Orders || 0), 0);
+  const totalTips = rows.reduce((sum, row) => sum + Number(row.Tips || 0), 0);
+  const totalPay = rows.reduce((sum, row) => sum + Number(row['Total Pay'] || 0), 0);
+
+  setText('payrollEmployees', employeeCount);
+  setText('payrollOrders', totalOrders);
+  setText('payrollTips', money(totalTips));
+  setText('payrollTotalPay', money(totalPay));
+
+  list.innerHTML = rows.length
+    ? rows.map(row => `
+      <div class="list-item">
+        <h4>${escapeHtml(row.Employee || 'Employee')}</h4>
+        <div class="order-detail-grid">
+          <div><strong>Start:</strong> ${escapeHtml(row['Start Date'] || '—')}</div>
+          <div><strong>End:</strong> ${escapeHtml(row['End Date'] || '—')}</div>
+          <div><strong>Orders:</strong> ${Number(row.Orders || 0)}</div>
+          <div><strong>Tips:</strong> ${money(row.Tips || 0)}</div>
+          <div><strong>Commission:</strong> ${money(row.Commission || 0)}</div>
+          <div><strong>Total Pay:</strong> ${money(row['Total Pay'] || 0)}</div>
         </div>
-      </header>
+      </div>
+    `).join('')
+    : '<div class="list-item"><p>No payroll rows loaded.</p></div>';
+}
 
-      <main class="main-layout">
-        <aside class="sidebar">
-          <div class="sidebar-card">
-            <h3>Navigation</h3>
-            <div id="navTabs" class="nav-tabs"></div>
-          </div>
-        </aside>
+async function loadPayroll() {
+  if (!state.session) return;
 
-        <section class="content-area">
-          <section id="dashboardSection" class="panel page-panel">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Overview</div>
-                <h2 id="welcomeTitle">Welcome</h2>
-                <p id="dashboardSubtitleText">Portal overview</p>
-              </div>
-            </div>
+  const result = await api('loadPayroll', authPayload({
+    startDate: getValue('payrollStartDate'),
+    endDate: getValue('payrollEndDate')
+  }));
 
-            <div class="stats-grid">
-              <div class="stat-card">
-                <span class="stat-label">Orders</span>
-                <span id="statOrders" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Sales</span>
-                <span id="statSales" class="stat-value">$0.00</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Employees</span>
-                <span id="statEmployees" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Raffle Entries</span>
-                <span id="statRaffle" class="stat-value">0</span>
-              </div>
-            </div>
+  const rows = result.rows || [];
+  state.payrollRows = rows;
+  renderPayroll(rows);
+}
 
-            <div class="split-grid">
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Announcements</h3>
-                </div>
-                <div id="announcementsList" class="list-wrap">
-                  <div class="list-item"><p>No active announcements.</p></div>
-                </div>
-              </div>
+/* =========================
+   SETTINGS: PRODUCTS MODAL UI
+========================= */
 
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Helpful Info</h3>
-                </div>
-                <div class="info-list">
-                  <p><strong>Portal:</strong> <span id="dashboardPortalName">Sean's Donuts</span></p>
-                  <p><strong>Subtitle:</strong> <span id="dashboardPortalSubtitle">Employee Portal</span></p>
-                  <p><strong>Bank ID:</strong> <span id="dashboardBankId">24596194</span></p>
-                </div>
-              </div>
-            </div>
-          </section>
+function getAdminProducts() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.products)) state.adminData.products = [];
+  return state.adminData.products;
+}
 
-          <section id="posSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Checkout</div>
-                <h2 id="posTitleText">POS</h2>
-                <p id="posSubtitleText">Create a new order</p>
-              </div>
-            </div>
+function getAdminEmployees() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.employees)) state.adminData.employees = [];
+  return state.adminData.employees;
+}
 
-            <div class="pos-layout">
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Customer</h3>
-                </div>
+function renderProductsAdminList() {
+  const wrap = $('productsAdminList');
+  if (!wrap) return;
 
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="customerName">Customer Name</label>
-                    <input id="customerName" type="text" placeholder="Customer name" />
-                  </div>
-                  <div class="field">
-                    <label for="customerDiscord">Customer Discord</label>
-                    <input id="customerDiscord" type="text" placeholder="Discord username" />
-                  </div>
-                  <div class="field">
-                    <label for="phoneNumber">Phone Number</label>
-                    <input id="phoneNumber" type="text" placeholder="Phone number" />
-                  </div>
-                </div>
+  const products = getAdminProducts();
 
-                <div class="section-title-row section-gap">
-                  <h3>Products</h3>
-                </div>
+  if (!products.length) {
+    wrap.innerHTML = `
+      <div class="list-item">
+        <p>No products yet.</p>
+      </div>
+    `;
+    return;
+  }
 
-                <div id="productGrid" class="product-grid">
-                  <div class="list-item"><p>No products yet.</p></div>
-                </div>
-              </div>
+  wrap.innerHTML = products.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || item.name || 'Unnamed Product')}</div>
+        <div class="settings-entry-sub">${money(item.Price || item.price || 0)} · ${escapeHtml(item.Active || item.active || 'Yes')}</div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-product="${index}">Update</button>
+    </div>
+  `).join('');
 
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Checkout</h3>
-                </div>
+  wrap.querySelectorAll('[data-open-product]').forEach(btn => {
+    btn.addEventListener('click', () => openProductModal(Number(btn.dataset.openProduct)));
+  });
+}
 
-                <div id="cartList" class="list-wrap">
-                  <div class="list-item"><p>Empty cart</p></div>
-                </div>
+function openProductModal(index) {
+  const items = getAdminProducts();
+  const item = index >= 0 ? (items[index] || {}) : {};
 
-                <div class="form-grid compact section-gap">
-                  <div class="field">
-                    <label for="mileageInput">Mileage</label>
-                    <input id="mileageInput" type="number" min="0" step="0.01" value="0" />
-                  </div>
-                  <div class="field">
-                    <label for="amountPaidInput">Amount Paid</label>
-                    <input id="amountPaidInput" type="number" min="0" step="0.01" value="0" />
-                  </div>
-                  <div class="field">
-                    <label for="paymentMethod">Payment Method</label>
-                    <select id="paymentMethod"></select>
-                  </div>
-                </div>
+  setValue('productModalIndex', index >= 0 ? index : '');
+  setValue('productModalName', item.Name || item.name || '');
+  setValue('productModalPrice', Number(item.Price || item.price || 0));
+  setValue('productModalActive', item.Active || item.active || 'Yes');
 
-                <div id="ownerOverrideBox" class="owner-override hidden">
-                  <div class="section-title-row">
-                    <h3>Owner Override</h3>
-                  </div>
+  const title = index >= 0 ? `UPDATE ${String(item.Name || item.name || 'PRODUCT').toUpperCase()}` : 'ADD PRODUCT';
+  setText('productModalTitle', title);
 
-                  <div class="form-grid compact">
-                    <div class="field">
-                      <label for="discountInput">Discount</label>
-                      <input id="discountInput" type="number" min="0" step="0.01" value="0" />
-                    </div>
-                    <div class="field">
-                      <label for="tipInput">Tip</label>
-                      <input id="tipInput" type="number" min="0" step="0.01" value="0" />
-                    </div>
-                  </div>
-                </div>
+  showEl('productModalBackdrop');
+  showEl('productModal');
+}
 
-                <div class="field section-gap">
-                  <label for="notes">Notes</label>
-                  <input id="notes" type="text" placeholder="Notes" />
-                </div>
+function closeProductModal() {
+  hideEl('productModalBackdrop');
+  hideEl('productModal');
+}
 
-                <div class="totals-box">
-                  <div><span>Subtotal</span><strong id="subtotalText">$0.00</strong></div>
-                  <div><span>Mileage</span><strong id="mileageText">$0.00</strong></div>
-                  <div><span>Discount</span><strong id="discountText">$0.00</strong></div>
-                  <div><span>Tip</span><strong id="tipText">$0.00</strong></div>
-                  <div><span>Amount Paid</span><strong id="amountPaidText">$0.00</strong></div>
-                  <div class="grand-total"><span>Total</span><strong id="totalText">$0.00</strong></div>
-                </div>
+function saveProductModal() {
+  const items = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
 
-                <div class="button-row">
-                  <button id="submitOrderBtn" class="btn btn-primary" type="button">Submit Order</button>
-                </div>
+  const item = {
+    Name: getValue('productModalName').trim(),
+    Price: Number(getValue('productModalPrice') || 0),
+    Active: getValue('productModalActive') || 'Yes'
+  };
 
-                <div id="orderMsg" class="message"></div>
-              </div>
-            </div>
-          </section>
+  if (!item.Name) {
+    alert('Product name is required.');
+    return;
+  }
 
-          <section id="ordersSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">History</div>
-                <h2 id="ordersTitleText">Orders</h2>
-                <p id="ordersSubtitleText">Search recent orders</p>
-              </div>
-            </div>
+  if (index >= 0) items[index] = item;
+  else items.push(item);
 
-            <div class="search-row">
-              <input id="orderSearchInput" type="text" placeholder="Search orders..." />
-              <button id="searchOrdersBtn" class="btn btn-primary" type="button">Search</button>
-            </div>
+  renderProductsAdminList();
+  closeProductModal();
+}
 
-            <div id="ordersAccordion" class="settings-accordion">
-              <div id="ordersList" class="list-wrap">
-                <div class="list-item"><p>No orders loaded.</p></div>
-              </div>
-            </div>
-          </section>
+function deleteProductModal() {
+  const items = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
 
-          <section id="rewardsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Customer</div>
-                <h2 id="rewardsTitleText">Rewards</h2>
-                <p id="rewardsSubtitleText">Lookup customer rewards</p>
-              </div>
-            </div>
+  if (index < 0) {
+    closeProductModal();
+    return;
+  }
 
-            <div class="search-row">
-              <input id="rewardCustomerName" type="text" placeholder="Customer name" />
-              <button id="lookupRewardsBtn" class="btn btn-primary" type="button">Lookup</button>
-            </div>
+  const ok = window.confirm('Delete this product?');
+  if (!ok) return;
 
-            <div id="rewardsAccordion" class="settings-accordion">
-              <div id="rewardsResultCard" class="list-wrap">
-                <div class="list-item"><p>Search a customer to view rewards.</p></div>
-              </div>
-            </div>
+  items.splice(index, 1);
+  renderProductsAdminList();
+  closeProductModal();
+}
 
-            <div id="rewardsMsg" class="message"></div>
-          </section>
+/* =========================
+   SETTINGS: EMPLOYEES MODAL UI
+========================= */
 
-          <section id="raffleSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Entries</div>
-                <h2 id="raffleTitleText">Raffle</h2>
-                <p id="raffleSubtitleText">Recent raffle entries</p>
-              </div>
-            </div>
+function renderEmployeesAdminList() {
+  const wrap = $('employeesAdminList');
+  if (!wrap) return;
 
-            <div class="button-row">
-              <button id="drawWinnerBtn" class="btn btn-primary" type="button">Draw Winner</button>
-              <button id="clearWinnerBtn" class="btn btn-danger" type="button">Clear Winner</button>
-              <button id="resetRaffleBtn" class="btn btn-danger hidden" type="button">Reset Raffle</button>
-            </div>
+  const employees = getAdminEmployees();
 
-            <div class="split-grid section-gap">
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Wheel</h3></div>
-                <div style="display:flex;justify-content:center;align-items:center;padding:8px 0;">
-                  <canvas id="raffleWheel" width="320" height="320"></canvas>
-                </div>
-              </div>
+  if (!employees.length) {
+    wrap.innerHTML = `
+      <div class="list-item">
+        <p>No employees yet.</p>
+      </div>
+    `;
+    return;
+  }
 
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Winner</h3></div>
-                <div id="raffleWinnerBox" class="list-wrap">
-                  <div class="list-item"><p>No winner drawn yet.</p></div>
-                </div>
-              </div>
-            </div>
+  wrap.innerHTML = employees.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || 'Unnamed Employee')}</div>
+        <div class="settings-entry-sub">${escapeHtml(item.Role || 'Employee')} · ${escapeHtml(item.Active || 'Yes')}</div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-employee="${index}">Update</button>
+    </div>
+  `).join('');
 
-            <div id="raffleList" class="list-wrap section-gap">
-              <div class="list-item"><p>No raffle entries loaded.</p></div>
-            </div>
+  wrap.querySelectorAll('[data-open-employee]').forEach(btn => {
+    btn.addEventListener('click', () => openEmployeeModal(Number(btn.dataset.openEmployee)));
+  });
+}
 
-            <div id="raffleMsg" class="message"></div>
-          </section>
+function openEmployeeModal(index) {
+  const items = getAdminEmployees();
+  const item = index >= 0 ? (items[index] || {}) : {};
 
-          <section id="adsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Marketing</div>
-                <h2>Ads Manager</h2>
-                <p>Create wording for people to post.</p>
-              </div>
-            </div>
+  setValue('employeeModalIndex', index >= 0 ? index : '');
+  setValue('employeeModalName', item.Name || '');
+  setValue('employeeModalEmail', item.Email || '');
+  setValue('employeeModalUsername', item.Username || '');
+  setValue('employeeModalPin', item.PIN || '');
+  setValue('employeeModalRole', item.Role || '');
+  setValue('employeeModalActive', item.Active || 'Yes');
 
-            <div class="card-block section-card">
-              <div class="section-title-row"><h3>Create Ad</h3></div>
+  const title = index >= 0 ? `UPDATE ${String(item.Name || 'EMPLOYEE').toUpperCase()}` : 'ADD EMPLOYEE';
+  setText('employeeModalTitle', title);
 
-              <div class="form-grid">
-                <div class="field">
-                  <label for="adTitle">Ad Title</label>
-                  <input id="adTitle" type="text" placeholder="Ad title" />
-                </div>
-                <div class="field">
-                  <label for="adStatus">Status</label>
-                  <select id="adStatus">
-                    <option value="Active">Active</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Posted">Posted</option>
-                  </select>
-                </div>
-              </div>
+  showEl('employeeModalBackdrop');
+  showEl('employeeModal');
+}
 
-              <div class="field section-gap">
-                <label for="adText">Ad Text</label>
-                <textarea id="adText" rows="6" placeholder="Write the ad here..."></textarea>
-              </div>
+function closeEmployeeModal() {
+  hideEl('employeeModalBackdrop');
+  hideEl('employeeModal');
+}
 
-              <div class="button-row">
-                <button id="saveAdBtn" class="btn btn-primary" type="button">Save Ad</button>
-              </div>
+function saveEmployeeModal() {
+  const items = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
 
-              <div id="adsMsg" class="message"></div>
-            </div>
+  const item = {
+    Name: getValue('employeeModalName').trim(),
+    Email: getValue('employeeModalEmail').trim(),
+    Username: getValue('employeeModalUsername').trim(),
+    PIN: getValue('employeeModalPin').trim(),
+    Role: getValue('employeeModalRole').trim(),
+    Active: getValue('employeeModalActive') || 'Yes'
+  };
 
-            <div class="card-block section-card section-gap">
-              <div class="section-title-row"><h3>Saved Ads</h3></div>
-              <div id="adsList" class="list-wrap">
-                <div class="list-item"><p>No ads yet.</p></div>
-              </div>
-            </div>
-          </section>
+  if (!item.Name && !item.Email) {
+    alert('Employee name or email is required.');
+    return;
+  }
 
-          <section id="payrollSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Team</div>
-                <h2 id="payrollTitleText">Payroll</h2>
-                <p id="payrollSubtitleText">Weekly payroll summary</p>
-              </div>
-            </div>
+  if (index >= 0) items[index] = item;
+  else items.push(item);
 
-            <div class="form-grid compact">
-              <div class="field">
-                <label for="payrollStartDate">Start Date</label>
-                <input id="payrollStartDate" type="date" />
-              </div>
-              <div class="field">
-                <label for="payrollEndDate">End Date</label>
-                <input id="payrollEndDate" type="date" />
-              </div>
-              <div class="field align-end">
-                <button id="loadPayrollBtn" class="btn btn-primary" type="button">Load Payroll</button>
-              </div>
-            </div>
+  renderEmployeesAdminList();
+  closeEmployeeModal();
+}
 
-            <div class="card-block section-card section-gap">
-              <div class="section-title-row"><h3>Payroll Summary</h3></div>
-              <div id="payrollSummary" class="stats-grid">
-                <div class="stat-card">
-                  <span class="stat-label">Employees</span>
-                  <span id="payrollEmployees" class="stat-value">0</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Orders</span>
-                  <span id="payrollOrders" class="stat-value">0</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Tips</span>
-                  <span id="payrollTips" class="stat-value">$0.00</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Total Pay</span>
-                  <span id="payrollTotalPay" class="stat-value">$0.00</span>
-                </div>
-              </div>
-            </div>
+function deleteEmployeeModal() {
+  const items = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
 
-            <div class="card-block section-card section-gap">
-              <div class="section-title-row"><h3>Payroll Rows</h3></div>
-              <div id="payrollList" class="list-wrap">
-                <div class="list-item"><p>No payroll rows loaded.</p></div>
-              </div>
-            </div>
-          </section>
+  if (index < 0) {
+    closeEmployeeModal();
+    return;
+  }
 
-          <section id="settingsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Owner</div>
-                <h2 id="settingsTitleText">Settings</h2>
-                <p id="settingsSubtitleText">Owner/Admin controls</p>
-              </div>
-            </div>
+  const ok = window.confirm('Delete this employee?');
+  if (!ok) return;
 
-            <div id="settingsAccordion" class="settings-accordion">
-              <details class="settings-popout" open>
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">⚙️</span>
-                    <span>Portal Settings</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div class="form-grid">
-                    <div class="field">
-                      <label for="settingsPortalName">Portal Name</label>
-                      <input id="settingsPortalName" type="text" />
-                    </div>
-                    <div class="field">
-                      <label for="settingsPortalSubtitle">Portal Subtitle</label>
-                      <input id="settingsPortalSubtitle" type="text" />
-                    </div>
-                    <div class="field">
-                      <label for="settingsAnnouncement">Announcement</label>
-                      <input id="settingsAnnouncement" type="text" />
-                    </div>
-                    <div class="field">
-                      <label for="settingsBankId">Bank ID</label>
-                      <input id="settingsBankId" type="text" />
-                    </div>
-                    <div class="field">
-                      <label for="settingsMileageRate">Mileage Rate</label>
-                      <input id="settingsMileageRate" type="number" min="0" step="0.01" />
-                    </div>
-                  </div>
+  items.splice(index, 1);
+  renderEmployeesAdminList();
+  closeEmployeeModal();
+}
 
-                  <div class="button-row">
-                    <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save Portal Settings</button>
-                  </div>
-                  <div id="settingsMsg" class="message"></div>
-                </div>
-              </details>
+/* =========================
+   SETTINGS: PAYMENT METHODS
+========================= */
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">🎟️</span>
-                    <span>Raffle Controls</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div class="form-grid">
-                    <div class="field">
-                      <label for="raffleEnabledSetting">Raffle Enabled</label>
-                      <select id="raffleEnabledSetting">
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-                    <div class="field">
-                      <label for="raffleMaxOverallSetting">Max Ticket Sales Overall</label>
-                      <input id="raffleMaxOverallSetting" type="number" min="0" step="1" />
-                    </div>
-                    <div class="field">
-                      <label for="raffleMaxPerPersonSetting">Max One Person Can Buy</label>
-                      <input id="raffleMaxPerPersonSetting" type="number" min="0" step="1" />
-                    </div>
-                    <div class="field">
-                      <label for="raffleStartDateSetting">Raffle Start Date</label>
-                      <input id="raffleStartDateSetting" type="datetime-local" />
-                    </div>
-                    <div class="field">
-                      <label for="raffleEndDateSetting">Raffle End Date</label>
-                      <input id="raffleEndDateSetting" type="datetime-local" />
-                    </div>
-                  </div>
+function paymentMethodRowHtml(item = {}) {
+  return `
+    <div class="list-item admin-payment-row">
+      <div class="form-grid">
+        <div class="field">
+          <label>Name</label>
+          <input class="admin-payment-name" type="text" value="${escapeHtml(item.Name || item.name || item || '')}">
+        </div>
+        <div class="field">
+          <label>Active</label>
+          <select class="admin-payment-active">
+            <option value="Yes" ${(String(item.Active || item.active || 'Yes') === 'Yes') ? 'selected' : ''}>Yes</option>
+            <option value="No" ${(String(item.Active || item.active || 'Yes') === 'No') ? 'selected' : ''}>No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
-                  <div class="button-row">
-                    <button id="saveRaffleSettingsBtn" class="btn btn-primary" type="button">Save Raffle Controls</button>
-                  </div>
-                  <div id="raffleSettingsMsg" class="message"></div>
-                </div>
-              </details>
+function renderPaymentMethodsAdminList() {
+  const paymentWrap = $('paymentMethodsAdminList');
+  if (!paymentWrap) return;
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">🎨</span>
-                    <span>Theme</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div class="form-grid">
-                    <div class="field"><label for="themePrimary">Primary</label><input id="themePrimary" type="color" /></div>
-                    <div class="field"><label for="themePrimaryDark">Primary Dark</label><input id="themePrimaryDark" type="color" /></div>
-                    <div class="field"><label for="themeSecondary">Secondary</label><input id="themeSecondary" type="color" /></div>
-                    <div class="field"><label for="themeBg">Background</label><input id="themeBg" type="color" /></div>
-                    <div class="field"><label for="themeCard">Card</label><input id="themeCard" type="color" /></div>
-                    <div class="field"><label for="themeText">Text</label><input id="themeText" type="color" /></div>
-                    <div class="field"><label for="themeMuted">Muted</label><input id="themeMuted" type="color" /></div>
-                    <div class="field"><label for="themeBorder">Border</label><input id="themeBorder" type="color" /></div>
-                  </div>
+  const paymentMethods = state.adminData?.paymentMethods || [];
+  paymentWrap.innerHTML = paymentMethods.length
+    ? paymentMethods.map(paymentMethodRowHtml).join('')
+    : paymentMethodRowHtml();
+}
 
-                  <div class="button-row">
-                    <button id="saveThemeBtn" class="btn btn-primary" type="button">Save Theme</button>
-                  </div>
-                  <div id="themeMsg" class="message"></div>
-                </div>
-              </details>
+function fillAdminFields() {
+  const settings = state.adminData?.settings || {};
+  const theme = state.adminData?.theme || {};
+  const uiText = state.adminData?.uiText || {};
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">📝</span>
-                    <span>UI Text</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div class="form-grid">
-                    <div class="field"><label for="uiLogoEmoji">Logo Emoji</label><input id="uiLogoEmoji" type="text" /></div>
-                    <div class="field"><label for="uiLoginTitle">Login Title</label><input id="uiLoginTitle" type="text" /></div>
-                    <div class="field"><label for="uiLoginSubtitle">Login Subtitle</label><input id="uiLoginSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiDashboardTitle">Dashboard Title</label><input id="uiDashboardTitle" type="text" /></div>
-                    <div class="field"><label for="uiDashboardSubtitle">Dashboard Subtitle</label><input id="uiDashboardSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiPOSTitle">POS Title</label><input id="uiPOSTitle" type="text" /></div>
-                    <div class="field"><label for="uiPOSSubtitle">POS Subtitle</label><input id="uiPOSSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiOrdersTitle">Orders Title</label><input id="uiOrdersTitle" type="text" /></div>
-                    <div class="field"><label for="uiOrdersSubtitle">Orders Subtitle</label><input id="uiOrdersSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiRewardsTitle">Rewards Title</label><input id="uiRewardsTitle" type="text" /></div>
-                    <div class="field"><label for="uiRewardsSubtitle">Rewards Subtitle</label><input id="uiRewardsSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiRaffleTitle">Raffle Title</label><input id="uiRaffleTitle" type="text" /></div>
-                    <div class="field"><label for="uiRaffleSubtitle">Raffle Subtitle</label><input id="uiRaffleSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiPayrollTitle">Payroll Title</label><input id="uiPayrollTitle" type="text" /></div>
-                    <div class="field"><label for="uiPayrollSubtitle">Payroll Subtitle</label><input id="uiPayrollSubtitle" type="text" /></div>
-                    <div class="field"><label for="uiSettingsTitle">Settings Title</label><input id="uiSettingsTitle" type="text" /></div>
-                    <div class="field"><label for="uiSettingsSubtitle">Settings Subtitle</label><input id="uiSettingsSubtitle" type="text" /></div>
-                  </div>
+  setValue('settingsPortalName', settings.portalName || '');
+  setValue('settingsPortalSubtitle', settings.portalSubtitle || '');
+  setValue('settingsAnnouncement', settings.announcement || '');
+  setValue('settingsBankId', settings.bankId || '');
+  setValue('settingsMileageRate', settings.mileageRate || 0);
 
-                  <div class="button-row">
-                    <button id="saveUITextBtn" class="btn btn-primary" type="button">Save UI Text</button>
-                  </div>
-                  <div id="uiTextMsg" class="message"></div>
-                </div>
-              </details>
+  setValue('raffleEnabledSetting', settings.raffleEnabled || 'Yes');
+  setValue('raffleMaxOverallSetting', settings.raffleMaxOverall || 0);
+  setValue('raffleMaxPerPersonSetting', settings.raffleMaxPerPerson || 0);
+  setValue('raffleStartDateSetting', settings.raffleStart || '');
+  setValue('raffleEndDateSetting', settings.raffleEnd || '');
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">🍩</span>
-                    <span>Products</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div id="productsAdminList" class="admin-list"></div>
-                  <div class="button-row">
-                    <button id="addProductRowBtn" class="btn btn-secondary" type="button">Add Product</button>
-                    <button id="saveProductsBtn" class="btn btn-primary" type="button">Save Products</button>
-                  </div>
-                  <div id="productsMsg" class="message"></div>
-                </div>
-              </details>
+  setValue('themePrimary', theme.primary || '#f28c18');
+  setValue('themePrimaryDark', theme.primaryDark || '#de7c0c');
+  setValue('themeSecondary', theme.secondary || '#6c4330');
+  setValue('themeBg', theme.bg || '#fdf4ea');
+  setValue('themeCard', theme.card || '#ffffff');
+  setValue('themeText', theme.text || '#4a2e22');
+  setValue('themeMuted', theme.muted || '#8a6a5a');
+  setValue('themeBorder', theme.border || '#edc9a5');
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">👥</span>
-                    <span>Employees</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div id="employeesAdminList" class="admin-list"></div>
-                  <div class="button-row">
-                    <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
-                    <button id="saveEmployeesBtn" class="btn btn-primary" type="button">Save Employees</button>
-                  </div>
-                  <div id="employeesMsg" class="message"></div>
-                </div>
-              </details>
+  setValue('uiLogoEmoji', uiText.logoEmoji || '🍩');
+  setValue('uiLoginTitle', uiText.loginTitle || '');
+  setValue('uiLoginSubtitle', uiText.loginSubtitle || '');
+  setValue('uiDashboardTitle', uiText.dashboardTitle || '');
+  setValue('uiDashboardSubtitle', uiText.dashboardSubtitle || '');
+  setValue('uiPOSTitle', uiText.posTitle || '');
+  setValue('uiPOSSubtitle', uiText.posSubtitle || '');
+  setValue('uiOrdersTitle', uiText.ordersTitle || '');
+  setValue('uiOrdersSubtitle', uiText.ordersSubtitle || '');
+  setValue('uiRewardsTitle', uiText.rewardsTitle || '');
+  setValue('uiRewardsSubtitle', uiText.rewardsSubtitle || '');
+  setValue('uiRaffleTitle', uiText.raffleTitle || '');
+  setValue('uiRaffleSubtitle', uiText.raffleSubtitle || '');
+  setValue('uiPayrollTitle', uiText.payrollTitle || '');
+  setValue('uiPayrollSubtitle', uiText.payrollSubtitle || '');
+  setValue('uiSettingsTitle', uiText.settingsTitle || '');
+  setValue('uiSettingsSubtitle', uiText.settingsSubtitle || '');
+}
 
-              <details class="settings-popout">
-                <summary>
-                  <span class="settings-summary-left">
-                    <span class="settings-icon">💳</span>
-                    <span>Payment Methods</span>
-                  </span>
-                </summary>
-                <div class="settings-popout-body">
-                  <div id="paymentMethodsAdminList" class="admin-list"></div>
-                  <div class="button-row">
-                    <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
-                    <button id="savePaymentMethodsBtn" class="btn btn-primary" type="button">Save Methods</button>
-                  </div>
-                  <div id="paymentMethodsMsg" class="message"></div>
-                </div>
-              </details>
-            </div>
-          </section>
-        </section>
-      </main>
-    </section>
-  </div>
+async function loadAdminData() {
+  if (!state.session || !canViewSettings()) return;
 
-  <script src="app.js"></script>
-</body>
-</html>
+  const result = await api('getAdminData', authPayload({}));
+  if (!result.ok) {
+    alert(result.message || 'Could not load admin data.');
+    return;
+  }
+
+  state.adminData = result;
+  fillAdminFields();
+  renderProductsAdminList();
+  renderEmployeesAdminList();
+  renderPaymentMethodsAdminList();
+}
+
+function collectProductsForSave() {
+  return getAdminProducts().map(item => ({
+    Name: item.Name || '',
+    Price: Number(item.Price || 0),
+    Active: item.Active || 'Yes'
+  })).filter(item => String(item.Name).trim());
+}
+
+function collectEmployeesForSave() {
+  return getAdminEmployees().map(item => ({
+    Name: item.Name || '',
+    Email: item.Email || '',
+    Username: item.Username || '',
+    PIN: item.PIN || '',
+    Role: item.Role || '',
+    Active: item.Active || 'Yes'
+  })).filter(item => String(item.Name).trim() || String(item.Email).trim());
+}
+
+function collectPaymentMethodsFromUI() {
+  return Array.from(document.querySelectorAll('.admin-payment-row')).map(row => ({
+    Name: row.querySelector('.admin-payment-name')?.value || '',
+    Active: row.querySelector('.admin-payment-active')?.value || 'Yes'
+  })).filter(item => String(item.Name).trim());
+}
+
+async function saveSettingsNow() {
+  const result = await api('saveSettings', authPayload({
+    portalName: getValue('settingsPortalName').trim(),
+    portalSubtitle: getValue('settingsPortalSubtitle').trim(),
+    announcement: getValue('settingsAnnouncement').trim(),
+    bankId: getValue('settingsBankId').trim(),
+    mileageRate: Number(getValue('settingsMileageRate') || 0)
+  }));
+
+  if (result.ok) {
+    state.mileageRate = Number(getValue('settingsMileageRate') || 0);
+    renderCart();
+  }
+
+  alert(result.message || 'Settings saved.');
+}
+
+async function saveRaffleSettings() {
+  const result = await api('saveRaffleSettings', authPayload({
+    enabled: getValue('raffleEnabledSetting'),
+    maxOverall: getValue('raffleMaxOverallSetting'),
+    maxPer: getValue('raffleMaxPerPersonSetting'),
+    start: getValue('raffleStartDateSetting'),
+    end: getValue('raffleEndDateSetting')
+  }));
+  alert(result.message || 'Raffle controls saved.');
+}
+
+async function saveThemeNow() {
+  const result = await api('saveTheme', authPayload({
+    theme: {
+      primary: getValue('themePrimary'),
+      primaryDark: getValue('themePrimaryDark'),
+      secondary: getValue('themeSecondary'),
+      bg: getValue('themeBg'),
+      card: getValue('themeCard'),
+      text: getValue('themeText'),
+      muted: getValue('themeMuted'),
+      border: getValue('themeBorder')
+    }
+  }));
+  alert(result.message || 'Theme saved.');
+}
+
+async function saveUITextNow() {
+  const result = await api('saveUIText', authPayload({
+    uiText: {
+      logoEmoji: getValue('uiLogoEmoji'),
+      loginTitle: getValue('uiLoginTitle'),
+      loginSubtitle: getValue('uiLoginSubtitle'),
+      dashboardTitle: getValue('uiDashboardTitle'),
+      dashboardSubtitle: getValue('uiDashboardSubtitle'),
+      posTitle: getValue('uiPOSTitle'),
+      posSubtitle: getValue('uiPOSSubtitle'),
+      ordersTitle: getValue('uiOrdersTitle'),
+      ordersSubtitle: getValue('uiOrdersSubtitle'),
+      rewardsTitle: getValue('uiRewardsTitle'),
+      rewardsSubtitle: getValue('uiRewardsSubtitle'),
+      raffleTitle: getValue('uiRaffleTitle'),
+      raffleSubtitle: getValue('uiRaffleSubtitle'),
+      payrollTitle: getValue('uiPayrollTitle'),
+      payrollSubtitle: getValue('uiPayrollSubtitle'),
+      settingsTitle: getValue('uiSettingsTitle'),
+      settingsSubtitle: getValue('uiSettingsSubtitle')
+    }
+  }));
+  alert(result.message || 'UI text saved.');
+}
+
+async function saveProductsNow() {
+  const result = await api('saveProducts', authPayload({
+    products: collectProductsForSave()
+  }));
+  alert(result.message || 'Products saved.');
+  if (result.ok) await loadAdminData();
+}
+
+async function saveEmployeesNow() {
+  const result = await api('saveEmployees', authPayload({
+    employees: collectEmployeesForSave()
+  }));
+  alert(result.message || 'Employees saved.');
+  if (result.ok) await loadAdminData();
+}
+
+async function savePaymentMethodsNow() {
+  const result = await api('savePaymentMethods', authPayload({
+    paymentMethods: collectPaymentMethodsFromUI()
+  }));
+  alert(result.message || 'Payment methods saved.');
+  if (result.ok) await loadAdminData();
+}
+
+function addProductRow() {
+  openProductModal(-1);
+}
+
+function addEmployeeRow() {
+  openEmployeeModal(-1);
+}
+
+function addPaymentMethodRow() {
+  const wrap = $('paymentMethodsAdminList');
+  if (wrap) wrap.insertAdjacentHTML('beforeend', paymentMethodRowHtml());
+}
+
+function wireModalDismiss() {
+  $('productModalClose')?.addEventListener('click', closeProductModal);
+  $('productModalCancel')?.addEventListener('click', closeProductModal);
+  $('productModalSave')?.addEventListener('click', saveProductModal);
+  $('productModalDelete')?.addEventListener('click', deleteProductModal);
+  $('productModalBackdrop')?.addEventListener('click', closeProductModal);
+
+  $('employeeModalClose')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalCancel')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalSave')?.addEventListener('click', saveEmployeeModal);
+  $('employeeModalDelete')?.addEventListener('click', deleteEmployeeModal);
+  $('employeeModalBackdrop')?.addEventListener('click', closeEmployeeModal);
+}
+
+function wireEvents() {
+  $('loginBtn')?.addEventListener('click', loginNow);
+  $('logoutBtn')?.addEventListener('click', logoutNow);
+  $('portalRefreshBtn')?.addEventListener('click', portalRefreshNow);
+
+  $('submitOrderBtn')?.addEventListener('click', submitOrder);
+  $('searchOrdersBtn')?.addEventListener('click', loadOrders);
+  $('lookupRewardsBtn')?.addEventListener('click', loadRewards);
+  $('drawWinnerBtn')?.addEventListener('click', drawRaffleWinnerNow);
+  $('clearWinnerBtn')?.addEventListener('click', clearRaffleWinnerNow);
+  $('resetRaffleBtn')?.addEventListener('click', resetRaffleNow);
+  $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
+  $('saveAdBtn')?.addEventListener('click', saveAd);
+
+  $('saveSettingsBtn')?.addEventListener('click', saveSettingsNow);
+  $('saveRaffleSettingsBtn')?.addEventListener('click', saveRaffleSettings);
+  $('saveThemeBtn')?.addEventListener('click', saveThemeNow);
+  $('saveUITextBtn')?.addEventListener('click', saveUITextNow);
+  $('saveProductsBtn')?.addEventListener('click', saveProductsNow);
+  $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
+  $('savePaymentMethodsBtn')?.addEventListener('click', savePaymentMethodsNow);
+
+  $('addProductRowBtn')?.addEventListener('click', addProductRow);
+  $('addEmployeeRowBtn')?.addEventListener('click', addEmployeeRow);
+  $('addPaymentMethodRowBtn')?.addEventListener('click', addPaymentMethodRow);
+
+  $('discountInput')?.addEventListener('input', renderCart);
+  $('tipInput')?.addEventListener('input', renderCart);
+  $('mileageInput')?.addEventListener('input', renderCart);
+  $('amountPaidInput')?.addEventListener('input', renderCart);
+
+  $('loginValue')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loginNow();
+  });
+
+  $('loginPin')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loginNow();
+  });
+
+  wireModalDismiss();
+}
+
+function init() {
+  wireEvents();
+  renderRewardsBlank();
+  renderCart();
+  drawRaffleWheel([]);
+}
+
+init();
