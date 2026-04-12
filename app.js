@@ -604,7 +604,20 @@ async function loadOrders() {
       ? rows.map(row => `
           <div class="list-item">
             <h4>${escapeHtml(row['Order Number'] || 'Order')}</h4>
-            <p>${escapeHtml(row['Customer Name'] || 'No customer')} · ${money(row['Total'] || 0)}</p>
+            <div class="order-detail-grid">
+              <div><strong>Date:</strong> ${escapeHtml(row['Timestamp'] || '—')}</div>
+              <div><strong>Employee:</strong> ${escapeHtml(row['Employee Name'] || '—')}</div>
+              <div><strong>Customer:</strong> ${escapeHtml(row['Customer Name'] || '—')}</div>
+              <div><strong>Discord:</strong> ${escapeHtml(row['Customer Discord'] || '—')}</div>
+              <div><strong>Phone:</strong> ${escapeHtml(row['Phone Number'] || '—')}</div>
+              <div><strong>Payment:</strong> ${escapeHtml(row['Payment Method'] || '—')}</div>
+              <div><strong>Subtotal:</strong> ${money(row['Subtotal'] || 0)}</div>
+              <div><strong>Discount:</strong> ${money(row['Discount'] || 0)}</div>
+              <div><strong>Tip:</strong> ${money(row['Tip'] || 0)}</div>
+              <div><strong>Mileage:</strong> ${money(row['Mileage'] || 0)}</div>
+              <div><strong>Total:</strong> ${money(row['Total'] || 0)}</div>
+              <div><strong>Notes:</strong> ${escapeHtml(row['Notes'] || '—')}</div>
+            </div>
           </div>
         `).join('')
       : '<div class="list-item"><p>No orders loaded.</p></div>';
@@ -923,7 +936,6 @@ async function loadAds() {
           <div class="list-item">
             <h4>${escapeHtml(ad.Title || '')}</h4>
             <p>${escapeHtml(ad['Ad Text'] || '')}</p>
-            <p><strong>Platform:</strong> ${escapeHtml(ad.Platform || '—')}</p>
             <p><strong>Status:</strong> ${escapeHtml(ad.Status || '—')}</p>
             <div class="button-row">
               <button type="button" class="btn btn-danger" data-delete-ad="${escapeHtml(ad.ID || '')}">Delete</button>
@@ -951,9 +963,6 @@ async function saveAd() {
       pin: getValue('loginPin').trim(),
       title: getValue('adTitle').trim(),
       text: getValue('adText').trim(),
-      platform: getValue('adPlatform').trim(),
-      image: getValue('adImage').trim(),
-      link: getValue('adLink').trim(),
       status: getValue('adStatus')
     });
 
@@ -965,9 +974,6 @@ async function saveAd() {
 
     setValue('adTitle', '');
     setValue('adText', '');
-    setValue('adPlatform', '');
-    setValue('adImage', '');
-    setValue('adLink', '');
     setValue('adStatus', 'Active');
 
     await loadAds();
