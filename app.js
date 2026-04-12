@@ -12,7 +12,8 @@ const state = {
   raffleWinner: null,
   wheelRotation: 0,
   ads: [],
-  payrollRows: []
+  payrollRows: [],
+  mileageRate: 0
 };
 
 const tabs = [
@@ -229,6 +230,8 @@ function fillPortalHeader() {
   const logoEmoji = ui.logoEmoji || '🍩';
   const employeeName = employee.name || 'User';
 
+  state.mileageRate = Number(settings.mileageRate || 0);
+
   setText('portalName', portalName);
   setText('portalSubtitle', portalSubtitle);
   setText('announcementBar', announcement);
@@ -266,6 +269,7 @@ function fillPortalHeader() {
   setValue('settingsPortalSubtitle', portalSubtitle);
   setValue('settingsAnnouncement', announcement);
   setValue('settingsBankId', bankId);
+  setValue('settingsMileageRate', state.mileageRate);
 
   if (isStrictOwner()) showEl('resetRaffleBtn');
   else hideEl('resetRaffleBtn');
@@ -348,6 +352,14 @@ function buildProductGrid() {
   });
 }
 
+function getMilesInput() {
+  return Number(getValue('mileageInput', 0) || 0);
+}
+
+function getMileageCharge() {
+  return getMilesInput() * Number(state.mileageRate || 0);
+}
+
 function renderCart() {
   const list = $('cartList');
   if (!list) return;
@@ -377,7 +389,7 @@ function renderCart() {
     : '<div class="list-item"><p>Empty cart</p></div>';
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const mileage = Number(getValue('mileageInput', 0) || 0);
+  const mileage = getMileageCharge();
   const amountPaid = Number(getValue('amountPaidInput', 0) || 0);
   const discount = Number(getValue('discountInput', 0) || 0);
   const tip = Number(getValue('tipInput', 0) || 0);
@@ -467,6 +479,7 @@ function logoutNow() {
   state.ads = [];
   state.payrollRows = [];
   state.activeTab = 'dashboard';
+  state.mileageRate = 0;
 
   showEl('loginView');
   hideEl('portalView');
@@ -508,7 +521,7 @@ async function submitOrder() {
       customerName,
       customerDiscord,
       phoneNumber,
-      mileage: Number(getValue('mileageInput', 0) || 0),
+      mileage: getMileageCharge(),
       amountPaid: Number(getValue('amountPaidInput', 0) || 0),
       discount: Number(getValue('discountInput', 0) || 0),
       tip: Number(getValue('tipInput', 0) || 0),
@@ -976,6 +989,7 @@ function fillAdminFields() {
   setValue('settingsPortalSubtitle', settings.portalSubtitle || '');
   setValue('settingsAnnouncement', settings.announcement || '');
   setValue('settingsBankId', settings.bankId || '');
+  setValue('settingsMileageRate', settings.mileageRate || 0);
 
   setValue('raffleEnabledSetting', settings.raffleEnabled || 'Yes');
   setValue('raffleMaxOverallSetting', settings.raffleMaxOverall || 0);
@@ -1056,8 +1070,15 @@ async function saveSettingsNow() {
     portalName: getValue('settingsPortalName').trim(),
     portalSubtitle: getValue('settingsPortalSubtitle').trim(),
     announcement: getValue('settingsAnnouncement').trim(),
-    bankId: getValue('settingsBankId').trim()
+    bankId: getValue('settingsBankId').trim(),
+    mileageRate: Number(getValue('settingsMileageRate') || 0)
   }));
+
+  if (result.ok) {
+    state.mileageRate = Number(getValue('settingsMileageRate') || 0);
+    renderCart();
+  }
+
   alert(result.message || 'Settings saved.');
 }
 
@@ -1184,6 +1205,7 @@ function wireEvents() {
   $('loginValue')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') loginNow();
   });
+
   $('loginPin')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') loginNow();
   });
