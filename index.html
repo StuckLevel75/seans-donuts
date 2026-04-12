@@ -1,535 +1,139 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sean's Donuts Portal</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-card">
-      <div class="loading-spinner"></div>
-      <div class="loading-title" id="loadingTitle">SAVING</div>
-      <div class="loading-text" id="loadingText">Please wait...</div>
+<section id="settingsSection" class="panel page-panel hidden">
+  <div class="panel-header page-header">
+    <div>
+      <div class="eyebrow">Owner</div>
+      <h2 id="settingsTitleText">Settings</h2>
+      <p id="settingsSubtitleText">Owner/Admin controls</p>
     </div>
   </div>
 
-  <div class="app-shell">
-    <section id="loginView" class="login-page">
-      <div class="login-card-v1">
-        <div class="login-logo-v1" id="loginLogo">🍩</div>
-        <h1 id="loginTitle">Sean's Donuts Portal</h1>
-        <p id="loginSubtitle">Sign in with your username or email and PIN.</p>
-
-        <div class="login-fields">
-          <input id="loginValue" type="text" placeholder="Username or Email" />
-          <input id="loginPin" type="password" placeholder="PIN" />
+  <div class="settings-accordion">
+    <details class="settings-popout" open>
+      <summary>
+        <span>Portal Settings</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div class="form-grid">
+          <div class="field">
+            <label for="settingsPortalName">Portal Name</label>
+            <input id="settingsPortalName" type="text" />
+          </div>
+          <div class="field">
+            <label for="settingsPortalSubtitle">Portal Subtitle</label>
+            <input id="settingsPortalSubtitle" type="text" />
+          </div>
+          <div class="field">
+            <label for="settingsAnnouncement">Announcement</label>
+            <input id="settingsAnnouncement" type="text" />
+          </div>
+          <div class="field">
+            <label for="settingsBankId">Bank ID</label>
+            <input id="settingsBankId" type="text" />
+          </div>
         </div>
 
-        <button id="loginBtn" class="login-btn-v1" type="button">Login</button>
-        <div id="loginMsg" class="message"></div>
+        <div class="button-row">
+          <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save Portal Settings</button>
+        </div>
+        <div id="settingsMsg" class="message"></div>
       </div>
-    </section>
+    </details>
 
-    <section id="portalView" class="hidden">
-      <header class="topbar topbar-stacked">
-        <div class="topbar-main">
-          <div class="brand-wrap">
-            <div class="brand-mark" id="brandLogo">🍩</div>
-            <div>
-              <h1 id="portalName">Sean's Donuts</h1>
-              <p id="portalSubtitle">Employee Portal</p>
-            </div>
-          </div>
-
-          <div class="topbar-right topbar-right-header">
-            <div class="header-meta-bar">
-              <div class="header-meta-item">
-                <span class="header-meta-label">Role</span>
-                <span id="sessionRole" class="header-meta-value">—</span>
-              </div>
-
-              <div class="header-meta-divider"></div>
-
-              <div class="header-meta-item">
-                <span class="header-meta-label">Bank ID</span>
-                <span id="bankIdText" class="header-meta-value">24596194</span>
-              </div>
-
-              <div class="header-meta-divider"></div>
-
-              <div class="header-meta-item header-status-item">
-                <span class="dot"></span>
-                <span id="sessionStatus" class="header-meta-value">Signed out</span>
-              </div>
-
-              <div class="header-meta-divider"></div>
-
-              <div class="header-meta-item header-hello-item">
-                <span id="userBadge" class="header-meta-value">👋 Hello, User</span>
-              </div>
-            </div>
-
-            <button id="logoutBtn" class="btn btn-danger hidden" type="button">Logout</button>
-          </div>
+    <details class="settings-popout">
+      <summary>
+        <span>Theme</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div class="form-grid">
+          <div class="field"><label for="themePrimary">Primary</label><input id="themePrimary" type="color" /></div>
+          <div class="field"><label for="themePrimaryDark">Primary Dark</label><input id="themePrimaryDark" type="color" /></div>
+          <div class="field"><label for="themeSecondary">Secondary</label><input id="themeSecondary" type="color" /></div>
+          <div class="field"><label for="themeBg">Background</label><input id="themeBg" type="color" /></div>
+          <div class="field"><label for="themeCard">Card</label><input id="themeCard" type="color" /></div>
+          <div class="field"><label for="themeText">Text</label><input id="themeText" type="color" /></div>
+          <div class="field"><label for="themeMuted">Muted</label><input id="themeMuted" type="color" /></div>
+          <div class="field"><label for="themeBorder">Border</label><input id="themeBorder" type="color" /></div>
         </div>
 
-        <div class="topbar-sub">
-          <div class="announcement-inline">
-            <strong>Announcement:</strong>
-            <span id="announcementBar">Welcome to Sean's Donuts Portal</span>
-          </div>
+        <div class="button-row">
+          <button id="saveThemeBtn" class="btn btn-primary" type="button">Save Theme</button>
         </div>
-      </header>
+        <div id="themeMsg" class="message"></div>
+      </div>
+    </details>
 
-      <main class="main-layout">
-        <aside class="sidebar">
-          <div class="sidebar-card">
-            <h3>Navigation</h3>
-            <div id="navTabs" class="nav-tabs"></div>
-          </div>
-        </aside>
+    <details class="settings-popout">
+      <summary>
+        <span>UI Text</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div class="form-grid">
+          <div class="field"><label for="uiLogoEmoji">Logo Emoji</label><input id="uiLogoEmoji" type="text" /></div>
+          <div class="field"><label for="uiLoginTitle">Login Title</label><input id="uiLoginTitle" type="text" /></div>
+          <div class="field"><label for="uiLoginSubtitle">Login Subtitle</label><input id="uiLoginSubtitle" type="text" /></div>
+          <div class="field"><label for="uiDashboardTitle">Dashboard Title</label><input id="uiDashboardTitle" type="text" /></div>
+          <div class="field"><label for="uiDashboardSubtitle">Dashboard Subtitle</label><input id="uiDashboardSubtitle" type="text" /></div>
+          <div class="field"><label for="uiPOSTitle">POS Title</label><input id="uiPOSTitle" type="text" /></div>
+          <div class="field"><label for="uiPOSSubtitle">POS Subtitle</label><input id="uiPOSSubtitle" type="text" /></div>
+          <div class="field"><label for="uiOrdersTitle">Orders Title</label><input id="uiOrdersTitle" type="text" /></div>
+          <div class="field"><label for="uiOrdersSubtitle">Orders Subtitle</label><input id="uiOrdersSubtitle" type="text" /></div>
+          <div class="field"><label for="uiRewardsTitle">Rewards Title</label><input id="uiRewardsTitle" type="text" /></div>
+          <div class="field"><label for="uiRewardsSubtitle">Rewards Subtitle</label><input id="uiRewardsSubtitle" type="text" /></div>
+          <div class="field"><label for="uiRaffleTitle">Raffle Title</label><input id="uiRaffleTitle" type="text" /></div>
+          <div class="field"><label for="uiRaffleSubtitle">Raffle Subtitle</label><input id="uiRaffleSubtitle" type="text" /></div>
+          <div class="field"><label for="uiPayrollTitle">Payroll Title</label><input id="uiPayrollTitle" type="text" /></div>
+          <div class="field"><label for="uiPayrollSubtitle">Payroll Subtitle</label><input id="uiPayrollSubtitle" type="text" /></div>
+          <div class="field"><label for="uiSettingsTitle">Settings Title</label><input id="uiSettingsTitle" type="text" /></div>
+          <div class="field"><label for="uiSettingsSubtitle">Settings Subtitle</label><input id="uiSettingsSubtitle" type="text" /></div>
+        </div>
 
-        <section class="content-area">
-          <section id="dashboardSection" class="panel page-panel">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Overview</div>
-                <h2 id="welcomeTitle">Welcome</h2>
-                <p id="dashboardSubtitleText">Portal overview</p>
-              </div>
-            </div>
+        <div class="button-row">
+          <button id="saveUITextBtn" class="btn btn-primary" type="button">Save UI Text</button>
+        </div>
+        <div id="uiTextMsg" class="message"></div>
+      </div>
+    </details>
 
-            <div class="stats-grid">
-              <div class="stat-card">
-                <span class="stat-label">Orders</span>
-                <span id="statOrders" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Sales</span>
-                <span id="statSales" class="stat-value">$0.00</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Employees</span>
-                <span id="statEmployees" class="stat-value">0</span>
-              </div>
-              <div class="stat-card">
-                <span class="stat-label">Raffle Entries</span>
-                <span id="statRaffle" class="stat-value">0</span>
-              </div>
-            </div>
+    <details class="settings-popout">
+      <summary>
+        <span>Products</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div id="productsAdminList" class="admin-list"></div>
+        <div class="button-row">
+          <button id="addProductRowBtn" class="btn btn-secondary" type="button">Add Product</button>
+          <button id="saveProductsBtn" class="btn btn-primary" type="button">Save Products</button>
+        </div>
+        <div id="productsMsg" class="message"></div>
+      </div>
+    </details>
 
-            <div class="split-grid">
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Announcements</h3>
-                </div>
-                <div id="announcementsList" class="list-wrap">
-                  <div class="list-item"><p>No active announcements.</p></div>
-                </div>
-              </div>
+    <details class="settings-popout">
+      <summary>
+        <span>Employees</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div id="employeesAdminList" class="admin-list"></div>
+        <div class="button-row">
+          <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
+          <button id="saveEmployeesBtn" class="btn btn-primary" type="button">Save Employees</button>
+        </div>
+        <div id="employeesMsg" class="message"></div>
+      </div>
+    </details>
 
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Helpful Info</h3>
-                </div>
-                <div class="info-list">
-                  <p><strong>Portal:</strong> <span id="dashboardPortalName">Sean's Donuts</span></p>
-                  <p><strong>Subtitle:</strong> <span id="dashboardPortalSubtitle">Employee Portal</span></p>
-                  <p><strong>Bank ID:</strong> <span id="dashboardBankId">24596194</span></p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section id="posSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Checkout</div>
-                <h2 id="posTitleText">POS</h2>
-                <p id="posSubtitleText">Create a new order</p>
-              </div>
-            </div>
-
-            <div class="pos-layout">
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Customer</h3>
-                </div>
-
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="customerName">Customer Name</label>
-                    <input id="customerName" type="text" placeholder="Customer name" />
-                  </div>
-                  <div class="field">
-                    <label for="customerDiscord">Customer Discord</label>
-                    <input id="customerDiscord" type="text" placeholder="Discord username" />
-                  </div>
-                  <div class="field">
-                    <label for="phoneNumber">Phone Number</label>
-                    <input id="phoneNumber" type="text" placeholder="Phone number" />
-                  </div>
-                </div>
-
-                <div class="section-title-row section-gap">
-                  <h3>Products</h3>
-                </div>
-
-                <div id="productGrid" class="product-grid">
-                  <div class="list-item"><p>No products yet.</p></div>
-                </div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row">
-                  <h3>Checkout</h3>
-                </div>
-
-                <div id="cartList" class="list-wrap">
-                  <div class="list-item"><p>Empty cart</p></div>
-                </div>
-
-                <div class="form-grid compact section-gap">
-                  <div class="field">
-                    <label for="mileageInput">Mileage</label>
-                    <input id="mileageInput" type="number" min="0" step="0.01" value="0" />
-                  </div>
-                  <div class="field">
-                    <label for="amountPaidInput">Amount Paid</label>
-                    <input id="amountPaidInput" type="number" min="0" step="0.01" value="0" />
-                  </div>
-                  <div class="field">
-                    <label for="paymentMethod">Payment Method</label>
-                    <select id="paymentMethod"></select>
-                  </div>
-                </div>
-
-                <div id="ownerOverrideBox" class="owner-override hidden">
-                  <div class="section-title-row">
-                    <h3>Owner Override</h3>
-                  </div>
-
-                  <div class="form-grid compact">
-                    <div class="field">
-                      <label for="discountInput">Discount</label>
-                      <input id="discountInput" type="number" min="0" step="0.01" value="0" />
-                    </div>
-                    <div class="field">
-                      <label for="tipInput">Tip</label>
-                      <input id="tipInput" type="number" min="0" step="0.01" value="0" />
-                    </div>
-                  </div>
-                </div>
-
-                <div class="field section-gap">
-                  <label for="notes">Notes</label>
-                  <input id="notes" type="text" placeholder="Notes" />
-                </div>
-
-                <div class="totals-box">
-                  <div><span>Subtotal</span><strong id="subtotalText">$0.00</strong></div>
-                  <div><span>Mileage</span><strong id="mileageText">$0.00</strong></div>
-                  <div><span>Discount</span><strong id="discountText">$0.00</strong></div>
-                  <div><span>Tip</span><strong id="tipText">$0.00</strong></div>
-                  <div><span>Amount Paid</span><strong id="amountPaidText">$0.00</strong></div>
-                  <div class="grand-total"><span>Total</span><strong id="totalText">$0.00</strong></div>
-                </div>
-
-                <div class="button-row">
-                  <button id="submitOrderBtn" class="btn btn-primary" type="button">Submit Order</button>
-                </div>
-
-                <div id="orderMsg" class="message"></div>
-              </div>
-            </div>
-          </section>
-
-          <section id="ordersSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">History</div>
-                <h2 id="ordersTitleText">Orders</h2>
-                <p id="ordersSubtitleText">Search recent orders</p>
-              </div>
-            </div>
-
-            <div class="search-row">
-              <input id="orderSearchInput" type="text" placeholder="Search orders..." />
-              <button id="searchOrdersBtn" class="btn btn-primary" type="button">Search</button>
-            </div>
-
-            <div id="ordersList" class="list-wrap">
-              <div class="list-item"><p>No orders loaded.</p></div>
-            </div>
-          </section>
-
-          <section id="rewardsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Customer</div>
-                <h2 id="rewardsTitleText">Rewards</h2>
-                <p id="rewardsSubtitleText">Lookup customer rewards</p>
-              </div>
-            </div>
-
-            <div class="search-row">
-              <input id="rewardCustomerName" type="text" placeholder="Customer name" />
-              <button id="lookupRewardsBtn" class="btn btn-primary" type="button">Lookup</button>
-            </div>
-
-            <div class="stats-grid rewards-grid">
-              <div class="stat-card"><span class="stat-label">Visits</span><span id="rewardVisits" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Progress</span><span id="rewardProgress" class="stat-value">0 / 10</span></div>
-              <div class="stat-card"><span class="stat-label">Available</span><span id="rewardAvailable" class="stat-value">0</span></div>
-              <div class="stat-card"><span class="stat-label">Redeemed</span><span id="rewardRedeemed" class="stat-value">0</span></div>
-            </div>
-
-            <div class="split-grid">
-              <div class="card-block section-card"><div class="section-title-row"><h3>Last Visit</h3></div><p id="rewardLastVisit">—</p></div>
-              <div class="card-block section-card"><div class="section-title-row"><h3>Last Order</h3></div><p id="rewardLastOrder">—</p></div>
-            </div>
-
-            <div id="rewardsMsg" class="message"></div>
-          </section>
-
-          <section id="raffleSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Entries</div>
-                <h2 id="raffleTitleText">Raffle</h2>
-                <p id="raffleSubtitleText">Recent raffle entries</p>
-              </div>
-            </div>
-
-            <div class="button-row">
-              <button id="drawWinnerBtn" class="btn btn-primary" type="button">Draw Winner</button>
-              <button id="clearWinnerBtn" class="btn btn-danger" type="button">Clear Winner</button>
-              <button id="resetRaffleBtn" class="btn btn-danger hidden" type="button">Reset Raffle</button>
-            </div>
-
-            <div class="split-grid section-gap">
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Wheel</h3></div>
-                <div style="display:flex;justify-content:center;align-items:center;padding:8px 0;">
-                  <canvas id="raffleWheel" width="320" height="320"></canvas>
-                </div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Winner</h3></div>
-                <div id="raffleWinnerBox" class="list-wrap">
-                  <div class="list-item"><p>No winner drawn yet.</p></div>
-                </div>
-              </div>
-            </div>
-
-            <div id="raffleList" class="list-wrap section-gap">
-              <div class="list-item"><p>No raffle entries loaded.</p></div>
-            </div>
-
-            <div id="raffleMsg" class="message"></div>
-          </section>
-
-          <section id="adsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Marketing</div>
-                <h2>Ads Manager</h2>
-                <p>Create wording for people to post.</p>
-              </div>
-            </div>
-
-            <div class="card-block section-card">
-              <div class="section-title-row"><h3>Create Ad</h3></div>
-
-              <div class="form-grid">
-                <div class="field">
-                  <label for="adTitle">Ad Title</label>
-                  <input id="adTitle" type="text" placeholder="Ad title" />
-                </div>
-                <div class="field">
-                  <label for="adStatus">Status</label>
-                  <select id="adStatus">
-                    <option value="Active">Active</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Posted">Posted</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="field section-gap">
-                <label for="adText">Ad Text</label>
-                <textarea id="adText" rows="6" placeholder="Write the ad here..."></textarea>
-              </div>
-
-              <div class="button-row">
-                <button id="saveAdBtn" class="btn btn-primary" type="button">Save Ad</button>
-              </div>
-
-              <div id="adsMsg" class="message"></div>
-            </div>
-
-            <div class="card-block section-card section-gap">
-              <div class="section-title-row"><h3>Saved Ads</h3></div>
-              <div id="adsList" class="list-wrap">
-                <div class="list-item"><p>No ads yet.</p></div>
-              </div>
-            </div>
-          </section>
-
-          <section id="payrollSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Team</div>
-                <h2 id="payrollTitleText">Payroll</h2>
-                <p id="payrollSubtitleText">View payroll rows</p>
-              </div>
-            </div>
-
-            <div class="form-grid compact">
-              <div class="field">
-                <label for="payrollStartDate">Start Date</label>
-                <input id="payrollStartDate" type="date" />
-              </div>
-              <div class="field">
-                <label for="payrollEndDate">End Date</label>
-                <input id="payrollEndDate" type="date" />
-              </div>
-              <div class="field align-end">
-                <button id="loadPayrollBtn" class="btn btn-primary" type="button">Load Payroll</button>
-              </div>
-            </div>
-
-            <div id="payrollList" class="list-wrap">
-              <div class="list-item"><p>No payroll rows loaded.</p></div>
-            </div>
-          </section>
-
-          <section id="settingsSection" class="panel page-panel hidden">
-            <div class="panel-header page-header">
-              <div>
-                <div class="eyebrow">Owner</div>
-                <h2 id="settingsTitleText">Settings</h2>
-                <p id="settingsSubtitleText">Owner/Admin controls</p>
-              </div>
-            </div>
-
-            <div class="admin-grid">
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Portal Settings</h3></div>
-
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="settingsPortalName">Portal Name</label>
-                    <input id="settingsPortalName" type="text" />
-                  </div>
-                  <div class="field">
-                    <label for="settingsPortalSubtitle">Portal Subtitle</label>
-                    <input id="settingsPortalSubtitle" type="text" />
-                  </div>
-                  <div class="field">
-                    <label for="settingsAnnouncement">Announcement</label>
-                    <input id="settingsAnnouncement" type="text" />
-                  </div>
-                  <div class="field">
-                    <label for="settingsBankId">Bank ID</label>
-                    <input id="settingsBankId" type="text" />
-                  </div>
-                </div>
-
-                <div class="button-row">
-                  <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save Portal Settings</button>
-                </div>
-                <div id="settingsMsg" class="message"></div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Theme</h3></div>
-
-                <div class="form-grid">
-                  <div class="field"><label for="themePrimary">Primary</label><input id="themePrimary" type="color" /></div>
-                  <div class="field"><label for="themePrimaryDark">Primary Dark</label><input id="themePrimaryDark" type="color" /></div>
-                  <div class="field"><label for="themeSecondary">Secondary</label><input id="themeSecondary" type="color" /></div>
-                  <div class="field"><label for="themeBg">Background</label><input id="themeBg" type="color" /></div>
-                  <div class="field"><label for="themeCard">Card</label><input id="themeCard" type="color" /></div>
-                  <div class="field"><label for="themeText">Text</label><input id="themeText" type="color" /></div>
-                  <div class="field"><label for="themeMuted">Muted</label><input id="themeMuted" type="color" /></div>
-                  <div class="field"><label for="themeBorder">Border</label><input id="themeBorder" type="color" /></div>
-                </div>
-
-                <div class="button-row">
-                  <button id="saveThemeBtn" class="btn btn-primary" type="button">Save Theme</button>
-                </div>
-                <div id="themeMsg" class="message"></div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>UI Text</h3></div>
-
-                <div class="form-grid">
-                  <div class="field"><label for="uiLogoEmoji">Logo Emoji</label><input id="uiLogoEmoji" type="text" /></div>
-                  <div class="field"><label for="uiLoginTitle">Login Title</label><input id="uiLoginTitle" type="text" /></div>
-                  <div class="field"><label for="uiLoginSubtitle">Login Subtitle</label><input id="uiLoginSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiDashboardTitle">Dashboard Title</label><input id="uiDashboardTitle" type="text" /></div>
-                  <div class="field"><label for="uiDashboardSubtitle">Dashboard Subtitle</label><input id="uiDashboardSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiPOSTitle">POS Title</label><input id="uiPOSTitle" type="text" /></div>
-                  <div class="field"><label for="uiPOSSubtitle">POS Subtitle</label><input id="uiPOSSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiOrdersTitle">Orders Title</label><input id="uiOrdersTitle" type="text" /></div>
-                  <div class="field"><label for="uiOrdersSubtitle">Orders Subtitle</label><input id="uiOrdersSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiRewardsTitle">Rewards Title</label><input id="uiRewardsTitle" type="text" /></div>
-                  <div class="field"><label for="uiRewardsSubtitle">Rewards Subtitle</label><input id="uiRewardsSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiRaffleTitle">Raffle Title</label><input id="uiRaffleTitle" type="text" /></div>
-                  <div class="field"><label for="uiRaffleSubtitle">Raffle Subtitle</label><input id="uiRaffleSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiPayrollTitle">Payroll Title</label><input id="uiPayrollTitle" type="text" /></div>
-                  <div class="field"><label for="uiPayrollSubtitle">Payroll Subtitle</label><input id="uiPayrollSubtitle" type="text" /></div>
-                  <div class="field"><label for="uiSettingsTitle">Settings Title</label><input id="uiSettingsTitle" type="text" /></div>
-                  <div class="field"><label for="uiSettingsSubtitle">Settings Subtitle</label><input id="uiSettingsSubtitle" type="text" /></div>
-                </div>
-
-                <div class="button-row">
-                  <button id="saveUITextBtn" class="btn btn-primary" type="button">Save UI Text</button>
-                </div>
-                <div id="uiTextMsg" class="message"></div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Products</h3></div>
-                <div id="productsAdminList" class="admin-list"></div>
-                <div class="button-row">
-                  <button id="addProductRowBtn" class="btn btn-secondary" type="button">Add Product</button>
-                  <button id="saveProductsBtn" class="btn btn-primary" type="button">Save Products</button>
-                </div>
-                <div id="productsMsg" class="message"></div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Employees</h3></div>
-                <div id="employeesAdminList" class="admin-list"></div>
-                <div class="button-row">
-                  <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
-                  <button id="saveEmployeesBtn" class="btn btn-primary" type="button">Save Employees</button>
-                </div>
-                <div id="employeesMsg" class="message"></div>
-              </div>
-
-              <div class="card-block section-card">
-                <div class="section-title-row"><h3>Payment Methods</h3></div>
-                <div id="paymentMethodsAdminList" class="admin-list"></div>
-                <div class="button-row">
-                  <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
-                  <button id="savePaymentMethodsBtn" class="btn btn-primary" type="button">Save Methods</button>
-                </div>
-                <div id="paymentMethodsMsg" class="message"></div>
-              </div>
-            </div>
-          </section>
-        </section>
-      </main>
-    </section>
+    <details class="settings-popout">
+      <summary>
+        <span>Payment Methods</span>
+      </summary>
+      <div class="settings-popout-body">
+        <div id="paymentMethodsAdminList" class="admin-list"></div>
+        <div class="button-row">
+          <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
+          <button id="savePaymentMethodsBtn" class="btn btn-primary" type="button">Save Methods</button>
+        </div>
+        <div id="paymentMethodsMsg" class="message"></div>
+      </div>
+    </details>
   </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+</section>
