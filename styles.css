@@ -101,10 +101,6 @@ textarea {
 }
 
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
   padding: 18px 24px;
   border-bottom: 1px solid var(--border);
   background: rgba(255,255,255,0.85);
@@ -112,6 +108,27 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.topbar-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.topbar-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.topbar-sub {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .brand-wrap {
@@ -137,6 +154,53 @@ textarea {
   gap: 12px;
 }
 
+.topbar-right-header {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.header-meta-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff7e8 0%, #fdeccf 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.header-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.header-meta-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-dark);
+}
+
+.header-meta-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.header-meta-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(108, 67, 48, 0.18);
+}
+
+.header-status-item .header-meta-value {
+  font-weight: 700;
+}
+
 .status-chip,
 .user-chip {
   border: 1px solid var(--border);
@@ -155,16 +219,14 @@ textarea {
   background: #2cbf6b;
 }
 
-.announcement-wrap {
-  padding: 18px 24px 0;
-}
-
-.announcement-card {
+.announcement-inline {
+  width: 100%;
   background: linear-gradient(180deg, #fff7e8 0%, #fdeccf 100%);
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   box-shadow: var(--shadow);
+  font-size: 15px;
 }
 
 .main-layout {
@@ -492,5 +554,31 @@ textarea {
 
   .search-row {
     flex-direction: column;
+  }
+
+  .topbar-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-right-header {
+    justify-content: stretch;
+  }
+
+  .header-meta-bar {
+    width: 100%;
+    border-radius: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .header-meta-divider {
+    display: none;
+  }
+
+  .user-chip,
+  .topbar-right-header .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
