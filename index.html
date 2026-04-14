@@ -30,27 +30,29 @@
   <!-- HEADER -->
   <div class="topbar">
     <div class="topbar-main">
-
       <div class="brand-wrap">
         <div id="brandLogo" class="brand-mark">🍩</div>
         <div>
           <h1 id="portalName">Sean's Donuts</h1>
-          <p id="portalSubtitle">Employee Portal</p>
+          <p id="portalSubtitle">Portal</p>
         </div>
       </div>
 
       <div class="topbar-right-header">
-
         <div class="header-meta-bar">
           <div class="header-meta-item">
             <span class="header-meta-label">User</span>
             <span id="userBadge" class="header-meta-value"></span>
           </div>
 
+          <div class="header-meta-divider"></div>
+
           <div class="header-meta-item">
             <span class="header-meta-label">Role</span>
             <span id="sessionRole" class="header-meta-value"></span>
           </div>
+
+          <div class="header-meta-divider"></div>
 
           <div class="header-meta-item">
             <span class="header-meta-label">Bank</span>
@@ -60,7 +62,6 @@
 
         <button id="portalRefreshBtn" class="btn btn-secondary hidden">Refresh</button>
         <button id="logoutBtn" class="btn btn-danger hidden">Logout</button>
-
       </div>
     </div>
 
@@ -83,53 +84,21 @@
 
       <!-- DASHBOARD -->
       <div id="dashboardSection" class="page-panel">
-        <div class="page-header">
-          <h2>Dashboard</h2>
-          <p id="welcomeTitle"></p>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">Orders</span>
-            <span id="statOrders" class="stat-value">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Sales</span>
-            <span id="statSales" class="stat-value">$0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Employees</span>
-            <span id="statEmployees" class="stat-value">0</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Raffle</span>
-            <span id="statRaffle" class="stat-value">0</span>
-          </div>
-        </div>
-
-        <div id="announcementsList"></div>
+        <h2>Dashboard</h2>
+        <p id="welcomeTitle"></p>
       </div>
 
       <!-- POS -->
       <div id="posSection" class="page-panel hidden">
-
-        <div class="page-header">
-          <h2>POS</h2>
-          <p>Create orders</p>
-        </div>
+        <h2>POS</h2>
 
         <div class="pos-layout">
 
-          <!-- PRODUCTS -->
-          <div class="panel">
-            <h3>Products</h3>
+          <div>
             <div id="productGrid" class="product-grid"></div>
           </div>
 
-          <!-- CART -->
-          <div class="panel">
-            <h3>Cart</h3>
-
+          <div>
             <div id="cartList"></div>
 
             <div class="totals-box">
@@ -137,11 +106,9 @@
               <div><span>Total</span><span id="totalText">$0.00</span></div>
             </div>
 
-            <div class="form-grid">
-              <input id="customerName" placeholder="Customer Name">
-              <input id="customerDiscord" placeholder="Discord">
-              <input id="phoneNumber" placeholder="Phone">
-            </div>
+            <input id="customerName" placeholder="Customer Name">
+            <input id="customerDiscord" placeholder="Discord">
+            <input id="phoneNumber" placeholder="Phone">
 
             <button id="submitOrderBtn" class="btn btn-primary">Submit Order</button>
           </div>
@@ -152,16 +119,18 @@
       <!-- SETTINGS -->
       <div id="settingsSection" class="page-panel hidden">
 
-        <div class="page-header">
-          <h2>Settings</h2>
-          <p>Manage system</p>
-        </div>
+        <h2>Settings</h2>
 
         <div class="settings-accordion">
 
           <!-- PRODUCTS -->
           <details class="settings-popout">
-            <summary>🍩 Products</summary>
+            <summary>
+              <span class="settings-summary-left">
+                <span class="settings-icon">🍩</span>
+                <span>Products</span>
+              </span>
+            </summary>
 
             <div class="settings-popout-body">
               <div id="productsAdminList" class="settings-entry-list"></div>
@@ -173,9 +142,14 @@
             </div>
           </details>
 
-          <!-- PAYMENT -->
+          <!-- PAYMENT METHODS -->
           <details class="settings-popout">
-            <summary>💳 Payment Methods</summary>
+            <summary>
+              <span class="settings-summary-left">
+                <span class="settings-icon">💳</span>
+                <span>Payment Methods</span>
+              </span>
+            </summary>
 
             <div class="settings-popout-body">
               <div id="paymentMethodsAdminList" class="settings-entry-list"></div>
@@ -198,21 +172,29 @@
 <div id="productModalBackdrop" class="modal-backdrop hidden"></div>
 <div id="productModal" class="settings-modal hidden">
   <div class="settings-modal-card">
-    <h2 id="productModalTitle">Product</h2>
 
-    <input id="productModalIndex" type="hidden">
-    <input id="productModalName" placeholder="Name">
-    <input id="productModalPrice" type="number" placeholder="Price">
-    <select id="productModalActive">
-      <option value="Yes">Active</option>
-      <option value="No">Inactive</option>
-    </select>
+    <div class="settings-modal-header">
+      <h2 id="productModalTitle">ADD PRODUCT</h2>
+      <button id="productModalClose">×</button>
+    </div>
 
-    <div class="button-row">
+    <div class="settings-modal-body">
+      <input id="productModalIndex" type="hidden">
+
+      <input id="productModalName" placeholder="Name">
+      <input id="productModalPrice" type="number" placeholder="Price">
+      <select id="productModalActive">
+        <option value="Yes">Active</option>
+        <option value="No">Inactive</option>
+      </select>
+    </div>
+
+    <div class="settings-modal-footer">
       <button id="productModalDelete" class="btn btn-danger">Delete</button>
       <button id="productModalCancel" class="btn btn-secondary">Cancel</button>
       <button id="productModalSave" class="btn btn-primary">Save</button>
     </div>
+
   </div>
 </div>
 
@@ -220,20 +202,27 @@
 <div id="paymentModalBackdrop" class="modal-backdrop hidden"></div>
 <div id="paymentModal" class="settings-modal hidden">
   <div class="settings-modal-card">
-    <h2 id="paymentModalTitle">Payment Method</h2>
 
-    <input id="paymentModalIndex" type="hidden">
-    <input id="paymentModalName" placeholder="Method Name">
-    <select id="paymentModalActive">
-      <option value="Yes">Active</option>
-      <option value="No">Inactive</option>
-    </select>
+    <div class="settings-modal-header">
+      <h2 id="paymentModalTitle">PAYMENT METHOD</h2>
+      <button id="paymentModalClose">×</button>
+    </div>
 
-    <div class="button-row">
+    <div class="settings-modal-body">
+      <input id="paymentModalIndex" type="hidden">
+      <input id="paymentModalName" placeholder="Method Name">
+      <select id="paymentModalActive">
+        <option value="Yes">Active</option>
+        <option value="No">Inactive</option>
+      </select>
+    </div>
+
+    <div class="settings-modal-footer">
       <button id="paymentModalDelete" class="btn btn-danger">Delete</button>
       <button id="paymentModalCancel" class="btn btn-secondary">Cancel</button>
       <button id="paymentModalSave" class="btn btn-primary">Save</button>
     </div>
+
   </div>
 </div>
 
