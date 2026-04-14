@@ -2,6 +2,7 @@ const state = {
   apiUrl: localStorage.getItem('sd_api_url') || '',
   session: null,
   bootstrap: null,
+  adminData: null,
   products: [],
   cart: {},
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
@@ -103,7 +104,13 @@ function getRole() {
 
 function canViewSettings() {
   const perms = getPerms();
-  return !!(perms.canViewSettings || perms.isOwner || perms.isAdmin || getRole() === 'owner' || getRole() === 'admin');
+  return !!(
+    perms.canViewSettings ||
+    perms.isOwner ||
+    perms.isAdmin ||
+    getRole() === 'owner' ||
+    getRole() === 'admin'
+  );
 }
 
 function getVisibleTabs() {
@@ -145,6 +152,10 @@ function openTab(tab) {
   $(`${tab}Section`)?.classList.remove('hidden');
 
   renderNav();
+
+  if (tab === 'settings') {
+    loadAdminData();
+  }
 }
 
 function fillHeader() {
@@ -398,6 +409,153 @@ async function submitOrder() {
   }
 }
 
+// ================= PAYMENT METHODS SETTINGS =================
+
+function getAdminPaymentMethods() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.paymentMethods)) {
+    state.adminData.paymentMethods = [];
+  }
+  return state.adminData.paymentMethods;
+}
+
+function renderPaymentMethodsAdmin() {
+  const wrap = $('paymentMethodsAdminList');
+  if (!wrap) return;
+
+  const methods = getAdminPaymentMethods();
+
+  if (!methods.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No payment methods yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = methods.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || item.name || 'Unnamed Method')}</div>
+        <div class="settings-entry-sub">${escapeHtml(item.Active || item.active || 'Yes')}</div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-payment="${index}">Update</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-open-payment]').forEach(btn => {
+    btn.addEventListener('click', () => openPaymentModal(Number(btn.dataset.openPayment)));
+  });
+}
+
+function openPaymentModal(index) {
+  const methods = getAdminPaymentMethods();
+  const item = index >= 0 ? (methods[index] || {}) : {};
+
+  setText('paymentModalTitle', index >= 0
+    ? `UPDATE ${String(item.Name || item.name || 'METHOD').toUpperCase()}`
+    : 'ADD PAYMENT METHOD'
+  );
+
+  setValue('paymentModalIndex', index >= 0 ? index : '');
+  setValue('paymentModalName', item.Name || item.name || '');
+  setValue('paymentModalActive', item.Active || item.active || 'Yes');
+
+  showEl('paymentModalBackdrop');
+  showEl('paymentModal');
+}
+
+function closePaymentModal() {
+  hideEl('paymentModalBackdrop');
+  hideEl('paymentModal');
+}
+
+function savePaymentModal() {
+  const methods = getAdminPaymentMethods();
+  const rawIndex = getValue('paymentModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  const item = {
+    Name: getValue('paymentModalName').trim(),
+    Active: getValue('paymentModalActive') || 'Yes'
+  };
+
+  if (!item.Name) {
+    alert('Method name is required.');
+    return;
+  }
+
+  if (index >= 0) methods[index] = item;
+  else methods.push(item);
+
+  renderPaymentMethodsAdmin();
+  closePaymentModal();
+}
+
+function deletePaymentModal() {
+  const methods = getAdminPaymentMethods();
+  const rawIndex = getValue('paymentModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  if (index < 0) {
+    closePaymentModal();
+    return;
+  }
+
+  const ok = window.confirm('Delete this payment method?');
+  if (!ok) return;
+
+  methods.splice(index, 1);
+  renderPaymentMethodsAdmin();
+  closePaymentModal();
+}
+
+async function savePaymentMethodsNow() {
+  try {
+    showLoading('SAVING', 'Saving payment methods...');
+
+    const methods = getAdminPaymentMethods().map(item => ({
+      Name: item.Name || '',
+      Active: item.Active || 'Yes'
+    })).filter(item => item.Name.trim());
+
+    const res = await api('savePaymentMethods', {
+      email: state.session?.employee?.email || '',
+      pin: getValue('loginPin'),
+      paymentMethods: methods
+    });
+
+    hideLoading();
+
+    if (!res.ok) {
+      alert(res.message || 'Could not save payment methods.');
+      return;
+    }
+
+    alert(res.message || 'Payment methods saved.');
+    await loadAdminData();
+    await portalRefreshNow();
+  } catch (e) {
+    hideLoading();
+    alert(e.message || 'Could not save payment methods.');
+  }
+}
+
+async function loadAdminData() {
+  if (!state.session || !canViewSettings()) return;
+
+  try {
+    const res = await api('getAdminData', {
+      email: state.session?.employee?.email || '',
+      pin: getValue('loginPin')
+    });
+
+    if (!res.ok) return;
+
+    state.adminData = res;
+    renderPaymentMethodsAdmin();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 async function portalRefreshNow() {
   showLoading('REFRESHING', 'Reloading...');
   try {
@@ -414,6 +572,11 @@ async function portalRefreshNow() {
     renderBootstrap();
     buildProducts();
     renderCart();
+
+    if (state.activeTab === 'settings') {
+      await loadAdminData();
+    }
+
     hideLoading();
   } catch (e) {
     hideLoading();
@@ -463,6 +626,8 @@ async function loginNow() {
     showEl('portalRefreshBtn');
 
     openTab('dashboard');
+    await loadAdminData();
+
     hideLoading();
   } catch (e) {
     hideLoading();
@@ -473,6 +638,7 @@ async function loginNow() {
 function logoutNow() {
   state.session = null;
   state.bootstrap = null;
+  state.adminData = null;
   state.products = [];
   state.cart = {};
   state.activeTab = 'dashboard';
@@ -488,6 +654,14 @@ function init() {
   $('logoutBtn')?.addEventListener('click', logoutNow);
   $('portalRefreshBtn')?.addEventListener('click', portalRefreshNow);
   $('submitOrderBtn')?.addEventListener('click', submitOrder);
+  $('savePaymentMethodsBtn')?.addEventListener('click', savePaymentMethodsNow);
+  $('addPaymentMethodRowBtn')?.addEventListener('click', () => openPaymentModal(-1));
+
+  $('paymentModalClose')?.addEventListener('click', closePaymentModal);
+  $('paymentModalCancel')?.addEventListener('click', closePaymentModal);
+  $('paymentModalSave')?.addEventListener('click', savePaymentModal);
+  $('paymentModalDelete')?.addEventListener('click', deletePaymentModal);
+  $('paymentModalBackdrop')?.addEventListener('click', closePaymentModal);
 
   $('mileageInput')?.addEventListener('input', renderCart);
   $('amountPaidInput')?.addEventListener('input', renderCart);
