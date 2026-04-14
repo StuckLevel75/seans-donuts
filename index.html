@@ -10,105 +10,228 @@
 
 <!-- LOGIN -->
 <div id="loginView" class="login-page">
-  <div class="login-card">
-    <div class="logo">🍩</div>
-    <h1>Sean's Donuts</h1>
-    <p>Employee Portal</p>
+  <div class="login-card-v1">
+    <div id="loginLogo" class="login-logo-v1">🍩</div>
+    <h1 id="loginTitle">Sean's Donuts</h1>
+    <p id="loginSubtitle">Employee Portal</p>
 
-    <input id="loginValue" placeholder="Email or Username">
-    <input id="loginPin" type="password" placeholder="PIN">
+    <div class="login-fields">
+      <input id="loginValue" placeholder="Email or Username">
+      <input id="loginPin" type="password" placeholder="PIN">
+    </div>
 
-    <button id="loginBtn">Login</button>
+    <button id="loginBtn" class="login-btn-v1">Login</button>
   </div>
 </div>
 
-<!-- APP -->
-<div id="portalView" class="hidden">
+<!-- PORTAL -->
+<div id="portalView" class="app-shell hidden">
 
   <!-- HEADER -->
-  <div class="header">
-    <div class="header-left">
-      <div class="logo">🍩</div>
-      <div>
-        <h2 id="portalName">Sean's Donuts</h2>
-        <p id="portalSubtitle">Portal</p>
+  <div class="topbar">
+    <div class="topbar-main">
+      <div class="brand-wrap">
+        <div id="brandLogo" class="brand-mark">🍩</div>
+        <div>
+          <h1 id="portalName">Sean's Donuts</h1>
+          <p id="portalSubtitle">Portal</p>
+        </div>
+      </div>
+
+      <div class="topbar-right-header">
+        <div class="header-meta-bar">
+          <div class="header-meta-item">
+            <span class="header-meta-label">User</span>
+            <span id="userBadge" class="header-meta-value"></span>
+          </div>
+
+          <div class="header-meta-divider"></div>
+
+          <div class="header-meta-item">
+            <span class="header-meta-label">Role</span>
+            <span id="sessionRole" class="header-meta-value"></span>
+          </div>
+
+          <div class="header-meta-divider"></div>
+
+          <div class="header-meta-item">
+            <span class="header-meta-label">Bank</span>
+            <span id="bankIdText" class="header-meta-value"></span>
+          </div>
+        </div>
+
+        <button id="portalRefreshBtn" class="btn btn-secondary hidden">Refresh</button>
+        <button id="logoutBtn" class="btn btn-danger hidden">Logout</button>
       </div>
     </div>
 
-    <div class="header-right">
-      <span id="userBadge"></span>
-      <button id="portalRefreshBtn">Refresh</button>
-      <button id="logoutBtn">Logout</button>
-    </div>
+    <div id="announcementBar" class="announcement-inline"></div>
   </div>
 
-  <!-- NAV -->
-  <div class="nav" id="navTabs"></div>
+  <!-- MAIN -->
+  <div class="main-layout">
 
-  <!-- CONTENT -->
-  <div class="content">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <h3>Navigation</h3>
+        <div id="navTabs" class="nav-tabs"></div>
+      </div>
+    </div>
 
-    <!-- DASHBOARD -->
-    <div id="dashboardSection" class="page">
-      <div class="card">
+    <!-- CONTENT -->
+    <div class="content-area">
+
+      <!-- DASHBOARD -->
+      <div id="dashboardSection" class="page-panel">
         <h2>Dashboard</h2>
         <p id="welcomeTitle"></p>
       </div>
 
-      <div class="grid">
-        <div class="card"><h3>Orders</h3><span id="statOrders"></span></div>
-        <div class="card"><h3>Sales</h3><span id="statSales"></span></div>
-        <div class="card"><h3>Employees</h3><span id="statEmployees"></span></div>
-        <div class="card"><h3>Raffle</h3><span id="statRaffle"></span></div>
-      </div>
-    </div>
+      <!-- POS -->
+      <div id="posSection" class="page-panel hidden">
+        <h2>POS</h2>
 
-    <!-- POS -->
-    <div id="posSection" class="page hidden">
-      <div class="grid-2">
+        <div class="pos-layout">
 
-        <div class="card">
-          <h3>Products</h3>
-          <div id="productGrid"></div>
-        </div>
-
-        <div class="card">
-          <h3>Cart</h3>
-          <div id="cartList"></div>
-
-          <div class="totals">
-            <div>Subtotal: <span id="subtotalText"></span></div>
-            <div>Total: <span id="totalText"></span></div>
+          <div>
+            <div id="productGrid" class="product-grid"></div>
           </div>
 
-          <input id="customerName" placeholder="Customer Name">
-          <input id="customerDiscord" placeholder="Discord">
-          <input id="phoneNumber" placeholder="Phone">
+          <div>
+            <div id="cartList"></div>
 
-          <button id="submitOrderBtn">Submit Order</button>
+            <div class="totals-box">
+              <div><span>Subtotal</span><span id="subtotalText">$0.00</span></div>
+              <div><span>Total</span><span id="totalText">$0.00</span></div>
+            </div>
+
+            <input id="customerName" placeholder="Customer Name">
+            <input id="customerDiscord" placeholder="Discord">
+            <input id="phoneNumber" placeholder="Phone">
+
+            <button id="submitOrderBtn" class="btn btn-primary">Submit Order</button>
+          </div>
+
         </div>
-
       </div>
-    </div>
 
-    <!-- SETTINGS -->
-    <div id="settingsSection" class="page hidden">
-      <div class="card">
+      <!-- SETTINGS -->
+      <div id="settingsSection" class="page-panel hidden">
+
         <h2>Settings</h2>
 
-        <h3>Products</h3>
-        <div id="productsAdminList"></div>
-        <button id="addProductRowBtn">Add Product</button>
-        <button id="saveProductsBtn">Save</button>
+        <div class="settings-accordion">
 
-        <h3>Payment Methods</h3>
-        <div id="paymentMethodsAdminList"></div>
-        <button id="addPaymentMethodRowBtn">Add Method</button>
-        <button id="savePaymentMethodsBtn">Save</button>
+          <!-- PRODUCTS -->
+          <details class="settings-popout">
+            <summary>
+              <span class="settings-summary-left">
+                <span class="settings-icon">🍩</span>
+                <span>Products</span>
+              </span>
+            </summary>
 
+            <div class="settings-popout-body">
+              <div id="productsAdminList" class="settings-entry-list"></div>
+
+              <div class="button-row">
+                <button id="addProductRowBtn" class="btn btn-secondary">Add Product</button>
+                <button id="saveProductsBtn" class="btn btn-primary">Save Products</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- PAYMENT METHODS -->
+          <details class="settings-popout">
+            <summary>
+              <span class="settings-summary-left">
+                <span class="settings-icon">💳</span>
+                <span>Payment Methods</span>
+              </span>
+            </summary>
+
+            <div class="settings-popout-body">
+              <div id="paymentMethodsAdminList" class="settings-entry-list"></div>
+
+              <div class="button-row">
+                <button id="addPaymentMethodRowBtn" class="btn btn-secondary">Add Method</button>
+                <button id="savePaymentMethodsBtn" class="btn btn-primary">Save Methods</button>
+              </div>
+            </div>
+          </details>
+
+        </div>
       </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div id="productModalBackdrop" class="modal-backdrop hidden"></div>
+<div id="productModal" class="settings-modal hidden">
+  <div class="settings-modal-card">
+
+    <div class="settings-modal-header">
+      <h2 id="productModalTitle">ADD PRODUCT</h2>
+      <button id="productModalClose">×</button>
     </div>
 
+    <div class="settings-modal-body">
+      <input id="productModalIndex" type="hidden">
+
+      <input id="productModalName" placeholder="Name">
+      <input id="productModalPrice" type="number" placeholder="Price">
+      <select id="productModalActive">
+        <option value="Yes">Active</option>
+        <option value="No">Inactive</option>
+      </select>
+    </div>
+
+    <div class="settings-modal-footer">
+      <button id="productModalDelete" class="btn btn-danger">Delete</button>
+      <button id="productModalCancel" class="btn btn-secondary">Cancel</button>
+      <button id="productModalSave" class="btn btn-primary">Save</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div id="paymentModalBackdrop" class="modal-backdrop hidden"></div>
+<div id="paymentModal" class="settings-modal hidden">
+  <div class="settings-modal-card">
+
+    <div class="settings-modal-header">
+      <h2 id="paymentModalTitle">PAYMENT METHOD</h2>
+      <button id="paymentModalClose">×</button>
+    </div>
+
+    <div class="settings-modal-body">
+      <input id="paymentModalIndex" type="hidden">
+      <input id="paymentModalName" placeholder="Method Name">
+      <select id="paymentModalActive">
+        <option value="Yes">Active</option>
+        <option value="No">Inactive</option>
+      </select>
+    </div>
+
+    <div class="settings-modal-footer">
+      <button id="paymentModalDelete" class="btn btn-danger">Delete</button>
+      <button id="paymentModalCancel" class="btn btn-secondary">Cancel</button>
+      <button id="paymentModalSave" class="btn btn-primary">Save</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingOverlay" class="loading-overlay hidden">
+  <div class="loading-card">
+    <div class="loading-spinner"></div>
+    <div id="loadingTitle">Loading</div>
+    <div id="loadingText">Please wait</div>
   </div>
 </div>
 
