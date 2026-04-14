@@ -48,6 +48,7 @@ body {
   min-height: 100vh;
 }
 
+/* LOGIN */
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -123,17 +124,12 @@ textarea:focus {
   cursor: pointer;
   font-weight: 700;
   font-size: 13px;
-  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .login-btn-v1:hover,
 .btn:hover {
   transform: translateY(-1px);
-}
-
-.btn:active,
-.login-btn-v1:active {
-  transform: translateY(0);
 }
 
 .btn-primary,
@@ -153,6 +149,7 @@ textarea:focus {
   color: #fff;
 }
 
+/* TOPBAR */
 .topbar {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
@@ -287,6 +284,7 @@ textarea:focus {
   font-size: 13px;
 }
 
+/* MAIN LAYOUT */
 .main-layout {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -323,13 +321,14 @@ textarea:focus {
   gap: 8px;
 }
 
+.nav-tabs button,
 .nav-btn {
   width: 100%;
   border: 1px solid var(--border);
   background: #fffaf5;
   color: var(--text);
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 999px;
   cursor: pointer;
   font-weight: 700;
   text-align: left;
@@ -374,11 +373,16 @@ textarea:focus {
   margin-bottom: 5px;
 }
 
+/* CARDS / GRIDS */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.rewards-grid {
+  margin-top: 14px;
 }
 
 .stat-card {
@@ -453,6 +457,7 @@ textarea:focus {
   margin: 8px 0;
 }
 
+/* POS */
 .order-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -590,6 +595,7 @@ textarea:focus {
   gap: 10px;
 }
 
+/* MESSAGES */
 .message {
   min-height: 18px;
   margin-top: 10px;
@@ -609,7 +615,7 @@ textarea:focus {
   color: #b73a2f;
 }
 
-/* loading */
+/* LOADING */
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -660,7 +666,7 @@ textarea:focus {
   }
 }
 
-/* accordion */
+/* ACCORDION */
 .settings-accordion {
   display: grid;
   gap: 12px;
@@ -746,7 +752,7 @@ textarea:focus {
   padding: 12px 14px;
 }
 
-/* settings entry cards */
+/* SETTINGS ENTRY CARDS */
 .settings-entry-list {
   display: grid;
   gap: 10px;
@@ -760,8 +766,7 @@ textarea:focus {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 245, 1) 0%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(180deg, rgba(255, 250, 245, 1) 0%, rgba(255, 255, 255, 1) 100%);
   box-shadow: var(--shadow);
 }
 
@@ -784,7 +789,7 @@ textarea:focus {
   font-weight: 700;
 }
 
-/* modal */
+/* MODALS */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -911,7 +916,7 @@ textarea:focus {
   font-weight: 900;
 }
 
-/* responsive */
+/* RESPONSIVE */
 @media (max-width: 1100px) {
   .main-layout,
   .pos-layout,
