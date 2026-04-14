@@ -409,6 +409,140 @@ async function submitOrder() {
   }
 }
 
+// ================= PRODUCTS SETTINGS =================
+
+function getAdminProducts() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.products)) {
+    state.adminData.products = [];
+  }
+  return state.adminData.products;
+}
+
+function renderProductsAdmin() {
+  const wrap = $('productsAdminList');
+  if (!wrap) return;
+
+  const products = getAdminProducts();
+
+  if (!products.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No products yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = products.map((item, index) => `
+    <div class="settings-entry-card">
+      <div class="settings-entry-main">
+        <div class="settings-entry-title">${escapeHtml(item.Name || item.name || 'Unnamed Product')}</div>
+        <div class="settings-entry-sub">
+          ${money(item.Price || item.price || 0)} · ${escapeHtml(item.Active || item.active || 'Yes')}
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary" data-open-product="${index}">Update</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-open-product]').forEach(btn => {
+    btn.addEventListener('click', () => openProductModal(Number(btn.dataset.openProduct)));
+  });
+}
+
+function openProductModal(index) {
+  const products = getAdminProducts();
+  const item = index >= 0 ? (products[index] || {}) : {};
+
+  setText('productModalTitle', index >= 0
+    ? `UPDATE ${String(item.Name || item.name || 'PRODUCT').toUpperCase()}`
+    : 'ADD PRODUCT'
+  );
+
+  setValue('productModalIndex', index >= 0 ? index : '');
+  setValue('productModalName', item.Name || item.name || '');
+  setValue('productModalPrice', Number(item.Price || item.price || 0));
+  setValue('productModalActive', item.Active || item.active || 'Yes');
+
+  showEl('productModalBackdrop');
+  showEl('productModal');
+}
+
+function closeProductModal() {
+  hideEl('productModalBackdrop');
+  hideEl('productModal');
+}
+
+function saveProductModal() {
+  const products = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  const item = {
+    Name: getValue('productModalName').trim(),
+    Price: Number(getValue('productModalPrice') || 0),
+    Active: getValue('productModalActive') || 'Yes'
+  };
+
+  if (!item.Name) {
+    alert('Product name is required.');
+    return;
+  }
+
+  if (index >= 0) products[index] = item;
+  else products.push(item);
+
+  renderProductsAdmin();
+  closeProductModal();
+}
+
+function deleteProductModal() {
+  const products = getAdminProducts();
+  const rawIndex = getValue('productModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  if (index < 0) {
+    closeProductModal();
+    return;
+  }
+
+  const ok = window.confirm('Delete this product?');
+  if (!ok) return;
+
+  products.splice(index, 1);
+  renderProductsAdmin();
+  closeProductModal();
+}
+
+async function saveProductsNow() {
+  try {
+    showLoading('SAVING', 'Saving products...');
+
+    const products = getAdminProducts().map(item => ({
+      Name: item.Name || '',
+      Price: Number(item.Price || 0),
+      Active: item.Active || 'Yes'
+    })).filter(item => item.Name.trim());
+
+    const res = await api('saveProducts', {
+      email: state.session?.employee?.email || '',
+      pin: getValue('loginPin'),
+      products
+    });
+
+    hideLoading();
+
+    if (!res.ok) {
+      alert(res.message || 'Could not save products.');
+      return;
+    }
+
+    alert(res.message || 'Products saved.');
+    await loadAdminData();
+    await portalRefreshNow();
+  } catch (e) {
+    hideLoading();
+    alert(e.message || 'Could not save products.');
+  }
+}
+
 // ================= PAYMENT METHODS SETTINGS =================
 
 function getAdminPaymentMethods() {
@@ -550,6 +684,7 @@ async function loadAdminData() {
     if (!res.ok) return;
 
     state.adminData = res;
+    renderProductsAdmin();
     renderPaymentMethodsAdmin();
   } catch (e) {
     console.error(e);
@@ -654,6 +789,16 @@ function init() {
   $('logoutBtn')?.addEventListener('click', logoutNow);
   $('portalRefreshBtn')?.addEventListener('click', portalRefreshNow);
   $('submitOrderBtn')?.addEventListener('click', submitOrder);
+
+  $('saveProductsBtn')?.addEventListener('click', saveProductsNow);
+  $('addProductRowBtn')?.addEventListener('click', () => openProductModal(-1));
+
+  $('productModalClose')?.addEventListener('click', closeProductModal);
+  $('productModalCancel')?.addEventListener('click', closeProductModal);
+  $('productModalSave')?.addEventListener('click', saveProductModal);
+  $('productModalDelete')?.addEventListener('click', deleteProductModal);
+  $('productModalBackdrop')?.addEventListener('click', closeProductModal);
+
   $('savePaymentMethodsBtn')?.addEventListener('click', savePaymentMethodsNow);
   $('addPaymentMethodRowBtn')?.addEventListener('click', () => openPaymentModal(-1));
 
