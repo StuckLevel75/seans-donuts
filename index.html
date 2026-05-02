@@ -30,6 +30,7 @@
   <!-- HEADER -->
   <div class="topbar">
     <div class="topbar-main">
+
       <div class="brand-wrap">
         <div id="brandLogo" class="brand-mark">🍩</div>
         <div>
@@ -84,21 +85,45 @@
 
       <!-- DASHBOARD -->
       <div id="dashboardSection" class="page-panel">
-        <h2>Dashboard</h2>
-        <p id="welcomeTitle"></p>
+        <div class="card">
+          <h2>Dashboard</h2>
+          <p id="welcomeTitle"></p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Orders</span>
+            <span id="statOrders" class="stat-value">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Sales</span>
+            <span id="statSales" class="stat-value">$0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Employees</span>
+            <span id="statEmployees" class="stat-value">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Raffle</span>
+            <span id="statRaffle" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <div id="announcementsList"></div>
       </div>
 
       <!-- POS -->
       <div id="posSection" class="page-panel hidden">
-        <h2>POS</h2>
-
         <div class="pos-layout">
 
-          <div>
+          <div class="card">
+            <h3>Products</h3>
             <div id="productGrid" class="product-grid"></div>
           </div>
 
-          <div>
+          <div class="card">
+            <h3>Cart</h3>
+
             <div id="cartList"></div>
 
             <div class="totals-box">
@@ -106,9 +131,11 @@
               <div><span>Total</span><span id="totalText">$0.00</span></div>
             </div>
 
-            <input id="customerName" placeholder="Customer Name">
-            <input id="customerDiscord" placeholder="Discord">
-            <input id="phoneNumber" placeholder="Phone">
+            <div class="form-grid">
+              <input id="customerName" placeholder="Customer Name">
+              <input id="customerDiscord" placeholder="Discord">
+              <input id="phoneNumber" placeholder="Phone">
+            </div>
 
             <button id="submitOrderBtn" class="btn btn-primary">Submit Order</button>
           </div>
@@ -118,49 +145,36 @@
 
       <!-- SETTINGS -->
       <div id="settingsSection" class="page-panel hidden">
+        <div class="card">
+          <h2>Settings</h2>
 
-        <h2>Settings</h2>
+          <div class="settings-accordion">
 
-        <div class="settings-accordion">
+            <details class="settings-popout">
+              <summary>🍩 Products</summary>
+              <div class="settings-popout-body">
+                <div id="productsAdminList" class="settings-entry-list"></div>
 
-          <!-- PRODUCTS -->
-          <details class="settings-popout">
-            <summary>
-              <span class="settings-summary-left">
-                <span class="settings-icon">🍩</span>
-                <span>Products</span>
-              </span>
-            </summary>
-
-            <div class="settings-popout-body">
-              <div id="productsAdminList" class="settings-entry-list"></div>
-
-              <div class="button-row">
-                <button id="addProductRowBtn" class="btn btn-secondary">Add Product</button>
-                <button id="saveProductsBtn" class="btn btn-primary">Save Products</button>
+                <div class="button-row">
+                  <button id="addProductRowBtn" class="btn btn-secondary">Add Product</button>
+                  <button id="saveProductsBtn" class="btn btn-primary">Save</button>
+                </div>
               </div>
-            </div>
-          </details>
+            </details>
 
-          <!-- PAYMENT METHODS -->
-          <details class="settings-popout">
-            <summary>
-              <span class="settings-summary-left">
-                <span class="settings-icon">💳</span>
-                <span>Payment Methods</span>
-              </span>
-            </summary>
+            <details class="settings-popout">
+              <summary>💳 Payment Methods</summary>
+              <div class="settings-popout-body">
+                <div id="paymentMethodsAdminList" class="settings-entry-list"></div>
 
-            <div class="settings-popout-body">
-              <div id="paymentMethodsAdminList" class="settings-entry-list"></div>
-
-              <div class="button-row">
-                <button id="addPaymentMethodRowBtn" class="btn btn-secondary">Add Method</button>
-                <button id="savePaymentMethodsBtn" class="btn btn-primary">Save Methods</button>
+                <div class="button-row">
+                  <button id="addPaymentMethodRowBtn" class="btn btn-secondary">Add Method</button>
+                  <button id="savePaymentMethodsBtn" class="btn btn-primary">Save</button>
+                </div>
               </div>
-            </div>
-          </details>
+            </details>
 
+          </div>
         </div>
       </div>
 
@@ -180,7 +194,6 @@
 
     <div class="settings-modal-body">
       <input id="productModalIndex" type="hidden">
-
       <input id="productModalName" placeholder="Name">
       <input id="productModalPrice" type="number" placeholder="Price">
       <select id="productModalActive">
