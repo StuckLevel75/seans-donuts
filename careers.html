@@ -87,3 +87,35 @@
 
 </body>
 </html>
+
+<script>
+document.querySelector(".sd-form").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const formData = {
+    email: this.email.value,
+    discord: this.discord.value,
+    name: this.name.value,
+    age: this.age.value,
+    timezone: this.timezone.value,
+    phone: this.phone.value,
+    why: this.why.value,
+    skill: this.skill.value,
+    flaw: this.flaw.value,
+    customer: this.customer.value,
+    position: this.position.value,
+    questions: this.questions.value
+  };
+
+  fetch("YOUR_WEB_APP_URL_HERE", {
+    method: "POST",
+    body: JSON.stringify(formData)
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert("Application submitted!");
+    document.querySelector(".sd-form").reset();
+  })
+  .catch(() => alert("Error submitting application"));
+});
+</script>
