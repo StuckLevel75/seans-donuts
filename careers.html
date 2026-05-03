@@ -92,7 +92,7 @@
 document.querySelector(".sd-form").addEventListener("submit", function(e) {
   e.preventDefault();
 
-  const formData = {
+  const payload = {
     email: this.email.value,
     discord: this.discord.value,
     name: this.name.value,
@@ -109,12 +109,19 @@ document.querySelector(".sd-form").addEventListener("submit", function(e) {
 
   fetch("https://script.google.com/macros/s/AKfycbw8QmZ4jl1ym9RwOlqP5_9XVgQNxAZiyMkA9YVYT9ag4dM-BPHaurTIw0aULBJDL5Xvwg/exec", {
     method: "POST",
-    body: JSON.stringify(formData)
+    body: JSON.stringify({
+      action: "submitApplication",
+      payload: payload
+    })
   })
   .then(res => res.json())
   .then(data => {
-    alert("Application submitted!");
-    document.querySelector(".sd-form").reset();
+    if (data.ok) {
+      alert("Application submitted!");
+      document.querySelector(".sd-form").reset();
+    } else {
+      alert("Error: " + data.message);
+    }
   })
   .catch(() => alert("Error submitting application"));
 });
