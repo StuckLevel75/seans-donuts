@@ -74,6 +74,31 @@ function hideLoading() {
   hideEl('loadingOverlay');
 }
 
+function showToast(message, type = 'info') {
+  const text = String(message || '').trim();
+  if (!text) return;
+
+  let wrap = $('toastContainer');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'toastContainer';
+    wrap.className = 'toast-container';
+    document.body.appendChild(wrap);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `toast-message toast-${type}`;
+  toast.textContent = text;
+  wrap.appendChild(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add('toast-hide');
+    window.setTimeout(() => toast.remove(), 250);
+  }, 2600);
+}
+
+window.alert = message => showToast(message);
+
 function getPerms() {
   return state.session?.permissions || {};
 }
