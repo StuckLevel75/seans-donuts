@@ -666,6 +666,35 @@ textarea:focus {
   color: #d7c3b4;
 }
 
+.toast-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 10px;
+  z-index: 300;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.toast-message {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #1b120b;
+  color: #fff;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-hide {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
