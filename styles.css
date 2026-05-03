@@ -130,6 +130,12 @@ textarea {
   resize: vertical;
 }
 
+.copy-ready-box {
+  margin-top: 12px;
+  min-height: 130px;
+  background: #fffaf6;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -280,6 +286,41 @@ textarea:focus {
   border: 1px solid var(--border);
   background: #fff7e8;
   font-size: 13px;
+}
+
+.sale-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(90deg, var(--success) 0%, var(--info) 100%);
+  box-shadow: var(--shadow);
+}
+
+.sale-banner strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.sale-banner span {
+  display: block;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.sale-countdown {
+  flex: 0 0 auto;
+  min-width: 130px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .main-layout {
@@ -912,6 +953,16 @@ textarea:focus {
 
   .topbar-right-header {
     justify-content: space-between;
+  }
+
+  .sale-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sale-countdown {
+    width: 100%;
+    min-width: 0;
   }
 
   .header-meta-bar {
