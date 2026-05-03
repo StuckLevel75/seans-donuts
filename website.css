@@ -55,3 +55,23 @@ padding: 100px 20px;
 font-size: 50px;
 color: gold;
 }
+.buttons {
+margin-top: 20px;
+}
+
+.btn {
+display: inline-block;
+margin: 10px;
+padding: 12px 20px;
+background: #222;
+color: white;
+text-decoration: none;
+border-radius: 6px;
+}
+
+.btn.gold {
+background: gold;
+color: black;
+font-weight: bold;
+}
+
