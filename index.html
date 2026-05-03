@@ -234,6 +234,35 @@
           <div id="payrollList" class="stack-list"></div>
         </section>
 
+        <section id="employeesSection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Employees</h2>
+              <p>Add employees, change roles, and deactivate old accounts</p>
+            </div>
+            <div class="button-row">
+              <button id="addEmployeeRowBtn" class="btn btn-secondary" type="button">Add Employee</button>
+              <button id="saveEmployeesBtn" class="btn btn-primary" type="button">Save Employees</button>
+            </div>
+          </div>
+
+          <div id="employeesAdminList" class="settings-entry-list"></div>
+        </section>
+
+        <section id="permissionsSection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Role Permissions</h2>
+              <p>Owner-only access controls</p>
+            </div>
+            <button id="saveRolePermissionsBtn" class="btn btn-primary" type="button">Save Permissions</button>
+          </div>
+
+          <div class="permissions-wrap">
+            <div id="rolePermissionsTable" class="permissions-table"></div>
+          </div>
+        </section>
+
         <section id="settingsSection" class="page-panel hidden">
           <div class="section-heading">
             <div>
@@ -419,6 +448,39 @@
         <button id="paymentModalDelete" class="btn btn-danger" type="button">Delete</button>
         <button id="paymentModalCancel" class="btn btn-secondary" type="button">Cancel</button>
         <button id="paymentModalSave" class="btn btn-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="employeeModalBackdrop" class="modal-backdrop hidden"></div>
+  <div id="employeeModal" class="settings-modal hidden">
+    <div class="settings-modal-card">
+      <div class="settings-modal-header">
+        <h2 id="employeeModalTitle">Add Employee</h2>
+        <button id="employeeModalClose" type="button">×</button>
+      </div>
+      <div class="settings-modal-body">
+        <input id="employeeModalIndex" type="hidden">
+        <input id="employeeModalName" placeholder="Name">
+        <input id="employeeModalEmail" type="email" placeholder="Email">
+        <input id="employeeModalUsername" placeholder="Username">
+        <input id="employeeModalPin" type="password" inputmode="numeric" placeholder="PIN">
+        <select id="employeeModalRole">
+          <option value="Employee">Employee</option>
+          <option value="Senior Employee">Senior Employee</option>
+          <option value="Manager">Manager</option>
+          <option value="Admin">Admin</option>
+          <option value="Owner">Owner</option>
+        </select>
+        <select id="employeeModalActive">
+          <option value="Yes">Active</option>
+          <option value="No">Inactive</option>
+        </select>
+      </div>
+      <div class="settings-modal-footer">
+        <button id="employeeModalDeactivate" class="btn btn-danger" type="button">Deactivate</button>
+        <button id="employeeModalCancel" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="employeeModalSave" class="btn btn-primary" type="button">Save</button>
       </div>
     </div>
   </div>
