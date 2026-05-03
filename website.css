@@ -79,3 +79,33 @@ body {
   color: black;
   font-weight: bold;
 }
+
+/* MENU PAGE */
+.menu {
+  text-align: center;
+  margin-top: 50px;
+}
+
+.menu h1 {
+  color: gold;
+  font-size: 40px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 40px;
+}
+
+.item {
+  background: #111;
+  padding: 20px;
+  border: 1px solid gold;
+  border-radius: 8px;
+}
+
+.category {
+  color: gold;
+  margin-top: 30px;
+}
