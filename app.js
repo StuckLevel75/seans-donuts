@@ -103,6 +103,52 @@ function showToast(message, type = 'info') {
 
 window.alert = message => showToast(message);
 
+function showLoginNotice(message, url) {
+  const notice = $('loginNotice');
+  if (!notice) {
+    alert(message);
+    return;
+  }
+
+  notice.innerHTML = '';
+
+  const text = document.createElement('div');
+  text.textContent = message || 'Login failed.';
+  notice.appendChild(text);
+
+  const safeUrl = normalizeHttpUrl(url);
+  if (safeUrl) {
+    const link = document.createElement('a');
+    link.href = safeUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = "Sean's Donuts Cafe Discord";
+    notice.appendChild(link);
+  }
+
+  notice.classList.remove('hidden');
+}
+
+function hideLoginNotice() {
+  const notice = $('loginNotice');
+  if (!notice) return;
+
+  notice.innerHTML = '';
+  notice.classList.add('hidden');
+}
+
+function normalizeHttpUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
+  } catch (err) {
+    return '';
+  }
+}
+
 function getPerms() {
   return state.session?.permissions || {};
 }
@@ -560,6 +606,8 @@ async function portalRefreshNow() {
 }
 
 async function loginNow() {
+  hideLoginNotice();
+
   const loginValue = getValue('loginValue').trim();
   const pin = getValue('loginPin').trim();
 
@@ -577,6 +625,11 @@ async function loginNow() {
   try {
     const res = await api('login', { loginValue, email: loginValue, username: loginValue, pin });
     if (!res.ok) {
+      if (res.code === 'inactiveAccount') {
+        showLoginNotice(res.message, res.contactUrl);
+        return;
+      }
+
       alert(res.message || 'Login failed.');
       return;
     }
@@ -1085,6 +1138,7 @@ function renderSettingsForms() {
   setValue('settingsPortalSubtitle', settings.portalSubtitle || '');
   setValue('settingsAnnouncement', settings.announcement || '');
   setValue('settingsBankId', settings.bankId || '');
+  setValue('settingsDiscordInviteUrl', settings.discordInviteUrl || '');
   setValue('settingsMileageRate', settings.mileageRate || 0);
 
   setValue('saleEnabled', settings.saleEnabled || 'No');
@@ -1116,6 +1170,7 @@ async function saveSettingsNow() {
       portalSubtitle: getValue('settingsPortalSubtitle'),
       announcement: getValue('settingsAnnouncement'),
       bankId: getValue('settingsBankId'),
+      discordInviteUrl: getValue('settingsDiscordInviteUrl'),
       mileageRate: Number(getValue('settingsMileageRate') || 0)
     }));
 
@@ -1707,6 +1762,7 @@ function init() {
     $(id)?.addEventListener('keydown', event => {
       if (event.key === 'Enter') loginNow();
     });
+    $(id)?.addEventListener('input', hideLoginNotice);
   });
 
   renderNav();
