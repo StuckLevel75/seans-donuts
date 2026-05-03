@@ -1,1 +1,57 @@
+body {
+margin: 0;
+background: #000;
+color: white;
+font-family: Arial;
+}
 
+/* NAVBAR */
+.nav {
+display: flex;
+gap: 25px;
+padding: 15px;
+background: black;
+border-bottom: 2px solid gold;
+}
+
+.nav a, .nav button {
+color: white;
+text-decoration: none;
+background: none;
+border: none;
+cursor: pointer;
+font-size: 16px;
+}
+
+/* DROPDOWN */
+.dropdown {
+position: relative;
+}
+
+.dropdown-content {
+display: none;
+position: absolute;
+background: #111;
+top: 30px;
+min-width: 150px;
+}
+
+.dropdown-content a {
+display: block;
+padding: 10px;
+}
+
+.dropdown:hover .dropdown-content {
+display: block;
+}
+
+/* HERO */
+.hero {
+text-align: center;
+padding: 100px 20px;
+}
+
+.hero h1 {
+font-size: 50px;
+color: gold;
+}
