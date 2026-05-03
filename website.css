@@ -10,11 +10,11 @@ body {
   display: flex;
   justify-content: space-between;
   padding: 15px 30px;
-  border-bottom: 2px solid #ff7a00;
+  border-bottom: 2px solid #ff9900;
 }
 
 .logo {
-  color: #ff7a00;
+  color: #ff9900;
   font-weight: bold;
 }
 
@@ -30,6 +30,10 @@ body {
   background: none;
   border: none;
   cursor: pointer;
+}
+
+.links a:hover {
+  color: #ff9900;
 }
 
 /* DROPDOWN */
@@ -61,7 +65,7 @@ body {
 }
 
 .hero h1 {
-  color: #ff7a00;
+  color: #ff9900;
   font-size: 50px;
 }
 
@@ -72,10 +76,11 @@ body {
   color: white;
   text-decoration: none;
   margin: 10px;
+  border-radius: 6px;
 }
 
 .btn.gold {
-  background: #ff7a00;
+  background: #ff9900;
   color: black;
   font-weight: bold;
 }
@@ -87,11 +92,11 @@ body {
 }
 
 .menu h1 {
-  color: #ff7a00;
+  color: #ff9900;
 }
 
 .category {
-  color: #ff7a00;
+  color: #ff9900;
 }
 
 .menu-grid {
@@ -104,7 +109,7 @@ body {
 .item {
   background: #111;
   padding: 20px;
-  border: 1px solid #ff7a00;
+  border: 1px solid #ff9900;
   border-radius: 8px;
 }
 
@@ -119,15 +124,16 @@ body {
 
 /* CONTACT */
 .contact h1 {
-  color: #ff7a00;
+  color: #ff9900;
 }
 
 .contact-form input,
 .contact-form textarea {
-  border: 1px solid #ff7a00;
+  border: 1px solid #ff9900;
 }
 
 .contact-form button {
-  background: #ff7a00;
+  background: #ff9900;
   color: black;
+  font-weight: bold;
 }
