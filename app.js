@@ -1,5 +1,7 @@
+const SD_API_URL = 'https://script.google.com/macros/s/AKfycbw8QmZ4jl1ym9RwOlqP5_9XVgQNxAZiyMkA9YVYT9ag4dM-BPHaurTIw0aULBJDL5Xvwg/exec';
+
 const state = {
-  apiUrl: localStorage.getItem('sd_api_url') || '',
+  apiUrl: SD_API_URL || localStorage.getItem('sd_api_url') || '',
   session: null,
   sessionPin: '',
   bootstrap: null,
@@ -140,7 +142,7 @@ function authPayload(extra = {}) {
 
 async function api(action, payload = {}) {
   const apiUrl = String(state.apiUrl || '').trim();
-  if (!apiUrl) throw new Error('Paste your Apps Script Web App URL first.');
+  if (!apiUrl) throw new Error('The portal API URL has not been set yet.');
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -489,12 +491,11 @@ async function portalRefreshNow() {
 }
 
 async function loginNow() {
-  const apiUrl = getValue('apiUrlInput').trim();
   const loginValue = getValue('loginValue').trim();
   const pin = getValue('loginPin').trim();
 
-  if (!apiUrl) {
-    alert('Paste your Apps Script Web App URL first.');
+  if (!state.apiUrl) {
+    alert('The portal API URL has not been set yet.');
     return;
   }
 
@@ -502,9 +503,6 @@ async function loginNow() {
     alert('Enter your username/email and PIN.');
     return;
   }
-
-  state.apiUrl = apiUrl;
-  localStorage.setItem('sd_api_url', apiUrl);
 
   showLoading('Logging In', 'Checking access...');
   try {
@@ -1236,8 +1234,6 @@ function fromDateTimeLocal(value) {
 }
 
 function init() {
-  setValue('apiUrlInput', state.apiUrl);
-
   $('loginBtn')?.addEventListener('click', loginNow);
   $('logoutBtn')?.addEventListener('click', logoutNow);
   $('portalRefreshBtn')?.addEventListener('click', portalRefreshNow);
@@ -1285,7 +1281,7 @@ function init() {
     $(id)?.addEventListener('input', renderCart);
   });
 
-  ['apiUrlInput', 'loginValue', 'loginPin'].forEach(id => {
+  ['loginValue', 'loginPin'].forEach(id => {
     $(id)?.addEventListener('keydown', event => {
       if (event.key === 'Enter') loginNow();
     });
