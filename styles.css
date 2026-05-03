@@ -565,14 +565,16 @@ textarea:focus {
 .application-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 12px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .detail-block {
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 9px 10px;
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -582,7 +584,7 @@ textarea:focus {
 
 .detail-label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: #d7c3b4;
   font-size: 11px;
   font-weight: 900;
@@ -591,7 +593,8 @@ textarea:focus {
 
 .detail-value {
   white-space: pre-wrap;
-  line-height: 1.4;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .pos-layout {
@@ -942,24 +945,30 @@ textarea:focus {
 .settings-modal {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 100;
   padding: 20px;
+  overflow: auto;
 }
 
 .settings-modal-card {
   width: 100%;
   max-width: 440px;
+  max-height: min(86vh, 840px);
   background: #1b120b;
   border-radius: 16px;
   padding: 20px;
   color: #fff;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .large-modal-card {
-  max-width: 760px;
+  max-width: 820px;
 }
 
 .settings-modal-header {
@@ -967,6 +976,7 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
+  flex: 0 0 auto;
 }
 
 .settings-modal-header h2 {
@@ -987,6 +997,8 @@ textarea:focus {
 .settings-modal-body {
   display: grid;
   gap: 10px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .settings-modal-footer {
@@ -995,6 +1007,9 @@ textarea:focus {
   gap: 10px;
   margin-top: 16px;
   flex-wrap: wrap;
+  flex: 0 0 auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .loading-overlay {
@@ -1127,7 +1142,17 @@ textarea:focus {
 
   .product-grid,
   .stats-grid,
-  .theme-grid {
+  .theme-grid,
+  .application-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-modal {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .settings-modal-card {
+    max-height: calc(100vh - 24px);
   }
 }
