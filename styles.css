@@ -1,6 +1,6 @@
 :root {
-  --primary: #f28c18;
-  --primary-dark: #de7c0c;
+  --primary: #ff9900;
+  --primary-dark: #d98200;
   --secondary: #6c4330;
   --bg: #fdf4ea;
   --card: #ffffff;
@@ -31,6 +31,49 @@ body {
   color: var(--text);
 }
 
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px clamp(18px, 4vw, 48px);
+  background: rgba(255, 248, 239, 0.94);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+
+.site-nav .brand {
+  color: var(--primary-dark);
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  padding: 9px 11px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.nav-links a:hover,
+.nav-links .nav-portal {
+  color: var(--text);
+  background: #ffe8c8;
+}
+
 button,
 input,
 select,
@@ -52,7 +95,7 @@ button:disabled {
 }
 
 .login-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 62px);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -197,8 +240,7 @@ textarea:focus {
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
 }
 
@@ -455,6 +497,103 @@ textarea:focus {
   font-size: 12px;
 }
 
+.response-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.response-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fffaf6;
+}
+
+.response-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.response-card h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.response-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.count-badge,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #fff1d6;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.status-pill.status-accepted,
+.status-pill.status-resolved {
+  background: #e9f8f0;
+  color: var(--success);
+}
+
+.status-pill.status-denied,
+.status-pill.status-archived {
+  background: #fff0ee;
+  color: var(--danger);
+}
+
+.status-pill.status-interview,
+.status-pill.status-open {
+  background: #edf8fb;
+  color: var(--info);
+}
+
+.application-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.detail-block {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.detail-block-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #d7c3b4;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.detail-value {
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
 .pos-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
@@ -560,7 +699,7 @@ textarea:focus {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -819,6 +958,10 @@ textarea:focus {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
+.large-modal-card {
+  max-width: 760px;
+}
+
 .settings-modal-header {
   display: flex;
   justify-content: space-between;
@@ -946,9 +1089,14 @@ textarea:focus {
   }
 
   .topbar-main,
-  .section-heading {
+  .section-heading,
+  .site-nav {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .nav-links {
+    justify-content: center;
   }
 
   .topbar-right-header {
