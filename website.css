@@ -1,6 +1,6 @@
 body {
 margin: 0;
-background: #000;
+background: black;
 color: white;
 font-family: Arial;
 }
@@ -8,53 +8,50 @@ font-family: Arial;
 /* NAVBAR */
 .nav {
 display: flex;
-gap: 25px;
-padding: 15px;
-background: black;
+justify-content: space-between;
+align-items: center;
+padding: 15px 30px;
 border-bottom: 2px solid gold;
 }
 
-.nav a, .nav button {
+.logo {
+color: gold;
+font-size: 20px;
+font-weight: bold;
+}
+
+.links a {
+margin-left: 20px;
 color: white;
 text-decoration: none;
-background: none;
-border: none;
-cursor: pointer;
-font-size: 16px;
 }
 
-/* DROPDOWN */
-.dropdown {
-position: relative;
-}
-
-.dropdown-content {
-display: none;
-position: absolute;
-background: #111;
-top: 30px;
-min-width: 150px;
-}
-
-.dropdown-content a {
-display: block;
-padding: 10px;
-}
-
-.dropdown:hover .dropdown-content {
-display: block;
+.links a:hover {
+color: gold;
 }
 
 /* HERO */
 .hero {
+height: 80vh;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
 text-align: center;
-padding: 100px 20px;
 }
 
 .hero h1 {
-font-size: 50px;
+font-size: 60px;
 color: gold;
+margin: 0;
 }
+
+.hero p {
+font-size: 20px;
+margin: 10px 0;
+}
+
+/* BUTTONS */
 .buttons {
 margin-top: 20px;
 }
@@ -74,4 +71,3 @@ background: gold;
 color: black;
 font-weight: bold;
 }
-
