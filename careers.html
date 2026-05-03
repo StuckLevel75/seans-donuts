@@ -1,1 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Careers - Sean’s Donuts</title>
+  <link rel="stylesheet" href="website.css">
+</head>
 
+<body>
+
+<nav class="nav">
+  <div class="logo">🍩 Sean’s Donuts</div>
+
+  <div class="links">
+    <a href="home.html">Home</a>
+    <a href="menu.html">Menu</a>
+
+    <div class="dropdown">
+      <button class="dropbtn">Contact ▼</button>
+      <div class="dropdown-content">
+        <a href="contact.html">Contact</a>
+        <a href="crew.html">Crew</a>
+        <a href="careers.html">Careers</a>
+        <a href="advertise.html">Advertise</a>
+      </div>
+    </div>
+
+    <a href="portal-link.html">Employee Portal</a>
+  </div>
+</nav>
+
+<section class="form-page">
+  <h1>Sean’s Donuts Application</h1>
+
+  <p class="form-note">
+    Questions marked with a ❌ are OOC questions.<br>
+    Questions marked with a ✅ are in-character questions.
+  </p>
+
+  <form class="sd-form">
+
+    <label>Email *</label>
+    <input type="email" name="email" required>
+
+    <label>❌ Discord Username *</label>
+    <input type="text" name="discord" required>
+
+    <label>✅ First and Last Name *</label>
+    <input type="text" name="name" required>
+
+    <label>❌ How old are you? *</label>
+    <input type="date" name="age" required>
+
+    <label>What is your time zone? *</label>
+    <input type="text" name="timezone" required>
+
+    <label>✅ Phone Number *</label>
+    <input type="text" name="phone" required>
+
+    <label>✅ Why do you want to work for Sean's Donuts? (60 Words) *</label>
+    <textarea name="why" required></textarea>
+
+    <label>✅ What skill can you bring to Sean's Donuts? (60 words) *</label>
+    <textarea name="skill" required></textarea>
+
+    <label>✅ What is your biggest personal flaw? (30 words) *</label>
+    <textarea name="flaw" required></textarea>
+
+    <label>✅ Give an example of how you would handle a disgruntled customer. (60 Words) *</label>
+    <textarea name="customer" required></textarea>
+
+    <label>✅ What position are u interested in? *</label>
+    <select name="position" required>
+      <option value="">Select a position</option>
+      <option>Delivery Driver</option>
+      <option>Event Staff</option>
+      <option>Crew Members</option>
+      <option>Other</option>
+    </select>
+
+    <label>✅ Any questions for us?</label>
+    <textarea name="questions"></textarea>
+
+    <button type="submit">Submit Application</button>
+
+  </form>
+</section>
+
+</body>
+</html>
