@@ -1,73 +1,10 @@
 body {
-margin: 0;
-background: black;
-color: white;
-font-family: Arial;
+  margin: 0;
+  background: black;
+  color: white;
+  font-family: Arial, sans-serif;
 }
 
-/* NAVBAR */
-.nav {
-display: flex;
-justify-content: space-between;
-align-items: center;
-padding: 15px 30px;
-border-bottom: 2px solid gold;
-}
-
-.logo {
-color: gold;
-font-size: 20px;
-font-weight: bold;
-}
-
-.links a {
-margin-left: 20px;
-color: white;
-text-decoration: none;
-}
-
-.links a:hover {
-color: gold;
-}
-
-/* HERO */
-.hero {
-height: 80vh;
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: center;
-text-align: center;
-}
-
-.hero h1 {
-font-size: 60px;
-color: gold;
-margin: 0;
-}
-
-.hero p {
-font-size: 20px;
-margin: 10px 0;
-}
-
-/* BUTTONS */
-.buttons {
-margin-top: 20px;
-}
-
-.btn {
-display: inline-block;
-margin: 10px;
-padding: 12px 20px;
-background: #222;
-color: white;
-text-decoration: none;
-border-radius: 6px;
-}
-
-.btn.gold {
-background: gold;
-color: black;
-font-weight: bold;
+a {
+  color: white;
 }
