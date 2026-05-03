@@ -455,6 +455,17 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.raffle-contact-notice {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff4e8;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .totals-box {
   margin: 12px 0;
   padding: 12px;
