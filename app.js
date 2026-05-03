@@ -161,6 +161,34 @@ function getRole() {
   return String(getEmployee().role || '').trim().toLowerCase();
 }
 
+function roleKey(role) {
+  const value = String(role || 'Employee').trim().toLowerCase();
+  if (value === 'administrator') return 'admin';
+  if (value === 'staff' || value === '') return 'employee';
+  return value;
+}
+
+function roleLevel(role) {
+  const key = roleKey(role);
+  if (key === 'owner') return 5;
+  if (key === 'admin') return 4;
+  if (key === 'manager') return 3;
+  if (key === 'senior employee') return 2;
+  if (key === 'employee') return 1;
+  return 0;
+}
+
+function roleOptionsForCurrentUser() {
+  const actorLevel = roleLevel(getEmployee().role);
+  return ['Employee', 'Senior Employee', 'Manager', 'Admin', 'Owner']
+    .filter(role => actorLevel >= 5 || roleLevel(role) <= actorLevel);
+}
+
+function canCurrentUserEditEmployee(item) {
+  if (roleLevel(getEmployee().role) >= 5) return true;
+  return roleLevel(item.Role || item.role || 'Employee') <= roleLevel(getEmployee().role);
+}
+
 function hasAnyPermission(keys) {
   const perms = getPerms();
   return keys.some(key => perms[key]);
@@ -1317,6 +1345,8 @@ function renderEmployeesAdmin() {
     const email = item.Email || item.email || '';
     const username = item.Username || item.username || '';
 
+    const canEdit = canCurrentUserEditEmployee(item);
+
     return `
       <div class="settings-entry-card employee-card ${isActive ? 'employee-active' : 'employee-inactive'}">
         <div class="settings-entry-main">
@@ -1328,7 +1358,9 @@ function renderEmployeesAdmin() {
             ${escapeHtml(role)} · ${escapeHtml(active)} · ${escapeHtml(username || email || 'No login set')}
           </div>
         </div>
-        <button type="button" class="btn btn-secondary" data-open-employee="${index}">Update</button>
+        <button type="button" class="btn btn-secondary" data-open-employee="${index}" ${canEdit ? '' : 'disabled'}>
+          ${canEdit ? 'Update' : 'Locked'}
+        </button>
       </div>
     `;
   }).join('');
@@ -1341,6 +1373,12 @@ function renderEmployeesAdmin() {
 function openEmployeeModal(index) {
   const employees = getAdminEmployees();
   const item = index >= 0 ? (employees[index] || {}) : {};
+  const selectedRole = item.Role || item.role || 'Employee';
+
+  if (index >= 0 && !canCurrentUserEditEmployee(item)) {
+    alert('You cannot edit employees above your rank.');
+    return;
+  }
 
   setText('employeeModalTitle', index >= 0 ? 'Update Employee' : 'Add Employee');
   setValue('employeeModalIndex', index >= 0 ? index : '');
@@ -1348,7 +1386,7 @@ function openEmployeeModal(index) {
   setValue('employeeModalEmail', item.Email || item.email || '');
   setValue('employeeModalUsername', item.Username || item.username || '');
   setValue('employeeModalPin', item.PIN || item.pin || '');
-  setValue('employeeModalRole', item.Role || item.role || 'Employee');
+  renderEmployeeRoleOptions(selectedRole);
   setValue('employeeModalActive', item.Active || item.active || 'Yes');
 
   showEl('employeeModalBackdrop');
@@ -1358,6 +1396,19 @@ function openEmployeeModal(index) {
 function closeEmployeeModal() {
   hideEl('employeeModalBackdrop');
   hideEl('employeeModal');
+}
+
+function renderEmployeeRoleOptions(selectedRole) {
+  const select = $('employeeModalRole');
+  if (!select) return;
+
+  const options = roleOptionsForCurrentUser();
+  const safeSelected = options.includes(selectedRole) ? selectedRole : options[0] || 'Employee';
+
+  select.innerHTML = options.map(role => `
+    <option value="${escapeHtml(role)}">${escapeHtml(role)}</option>
+  `).join('');
+  select.value = safeSelected;
 }
 
 function readEmployeeModal() {
