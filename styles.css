@@ -594,6 +594,102 @@ textarea:focus {
   border-left: 5px solid var(--success);
 }
 
+.permissions-wrap {
+  overflow-x: auto;
+}
+
+.permissions-table {
+  min-width: 860px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.permissions-row {
+  display: grid;
+  grid-template-columns: 240px repeat(5, minmax(110px, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+.permissions-row:last-child {
+  border-bottom: none;
+}
+
+.permissions-header {
+  background: #fff4e8;
+  font-weight: 900;
+}
+
+.permissions-cell {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+}
+
+.permissions-cell:last-child {
+  border-right: none;
+}
+
+.permission-name {
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 800;
+}
+
+.permission-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.permission-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.permission-toggle span {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #e8d5c2;
+  border: 1px solid var(--border);
+  position: relative;
+  transition: background 0.18s ease;
+}
+
+.permission-toggle span::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.18s ease;
+}
+
+.permission-toggle input:checked + span {
+  background: var(--primary);
+}
+
+.permission-toggle input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.permission-toggle input:disabled + span {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
