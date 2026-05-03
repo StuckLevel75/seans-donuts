@@ -1,4 +1,4 @@
-const SD_API_URL = '';
+const SD_API_URL = 'https://script.google.com/macros/s/AKfycbw8QmZ4jl1ym9RwOlqP5_9XVgQNxAZiyMkA9YVYT9ag4dM-BPHaurTIw0aULBJDL5Xvwg/exec';
 
 const state = {
   apiUrl: SD_API_URL || localStorage.getItem('sd_api_url') || '',
@@ -292,9 +292,12 @@ function renderBootstrap() {
   state.paymentMethods = methods;
   const paymentMethod = $('paymentMethod');
   if (paymentMethod) {
-    paymentMethod.innerHTML = methods.map(method => `
-      <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
-    `).join('');
+    paymentMethod.innerHTML = `
+      <option value="">Choose payment method</option>
+      ${methods.map(method => `
+        <option value="${escapeHtml(method)}">${escapeHtml(method)}</option>
+      `).join('')}
+    `;
   }
 }
 
@@ -372,11 +375,57 @@ function getCartLines() {
   });
 }
 
+function getActiveSale() {
+  const settings = state.bootstrap?.settings || {};
+  const enabled = String(settings.saleEnabled || 'No').trim().toLowerCase() === 'yes';
+  const percent = Math.max(0, Math.min(100, Number(settings.salePercent || 0)));
+
+  if (!enabled || percent <= 0) {
+    return { active: false, percent: 0 };
+  }
+
+  const now = Date.now();
+  const startText = String(settings.saleStart || '').trim();
+  const endText = String(settings.saleEnd || '').trim();
+  const start = startText ? new Date(startText).getTime() : NaN;
+  const end = endText ? new Date(endText).getTime() : NaN;
+
+  if (!Number.isNaN(start) && now < start) return { active: false, percent };
+  if (!Number.isNaN(end) && now > end) return { active: false, percent };
+
+  return { active: true, percent };
+}
+
+function calculateCheckoutTotals() {
+  const lines = getCartLines();
+  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const mileage = Number(getValue('mileageInput') || 0);
+  const amountPaid = Number(getValue('amountPaidInput') || 0);
+  const sale = getActiveSale();
+  const saleDiscount = sale.active ? Math.min(subtotal, subtotal * (sale.percent / 100)) : 0;
+  const dueBeforeTip = Math.max(0, subtotal - saleDiscount + mileage);
+  const tip = Math.max(0, amountPaid - dueBeforeTip);
+  const total = dueBeforeTip + tip;
+
+  return {
+    lines,
+    subtotal,
+    mileage,
+    amountPaid,
+    sale,
+    saleDiscount,
+    dueBeforeTip,
+    tip,
+    total
+  };
+}
+
 function renderCart() {
   const list = $('cartList');
   if (!list) return;
 
-  const lines = getCartLines();
+  const totals = calculateCheckoutTotals();
+  const lines = totals.lines;
   if (!lines.length) {
     list.innerHTML = '<div class="list-item"><p>Empty cart</p></div>';
   } else {
@@ -388,19 +437,14 @@ function renderCart() {
     `).join('');
   }
 
-  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const mileage = Number(getValue('mileageInput') || 0);
-  const amountPaid = Number(getValue('amountPaidInput') || 0);
-  const discount = Number(getValue('discountInput') || 0);
-  const tip = Number(getValue('tipInput') || 0);
-  const total = Math.max(0, subtotal + mileage - discount + tip);
-
-  setText('subtotalText', money(subtotal));
-  setText('mileageText', money(mileage));
-  setText('discountText', money(discount));
-  setText('tipText', money(tip));
-  setText('amountPaidText', money(amountPaid));
-  setText('totalText', money(total));
+  setText('subtotalText', money(totals.subtotal));
+  setText('mileageText', money(totals.mileage));
+  setText('saleLabelText', totals.sale.active ? `Sale (${totals.sale.percent}% off)` : 'Sale');
+  setText('saleText', money(totals.saleDiscount));
+  setText('tipText', money(totals.tip));
+  setText('amountPaidText', money(totals.amountPaid));
+  setText('totalText', money(totals.total));
+  updateRaffleContactFields();
 }
 
 function clearCart() {
@@ -411,6 +455,22 @@ function clearCart() {
 
 function hasRaffleTicket() {
   return Object.keys(state.cart).some(name => name.toLowerCase().includes('raffle'));
+}
+
+function updateRaffleContactFields() {
+  const requiresContact = hasRaffleTicket();
+
+  document.querySelectorAll('.raffle-contact-field').forEach(el => {
+    el.classList.toggle('hidden', !requiresContact);
+  });
+
+  ['customerDiscord', 'phoneNumber'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+
+    el.required = requiresContact;
+    if (!requiresContact) el.value = '';
+  });
 }
 
 async function submitOrder() {
@@ -424,8 +484,14 @@ async function submitOrder() {
   const customerDiscord = getValue('customerDiscord').trim();
   const phoneNumber = getValue('phoneNumber').trim();
 
-  if (hasRaffleTicket() && (!customerName || !customerDiscord || !phoneNumber)) {
-    alert('Customer Name, Discord, and Phone are required for raffle tickets.');
+  if (hasRaffleTicket() && (!customerDiscord || !phoneNumber)) {
+    alert('Discord and Phone are required for raffle tickets.');
+    return;
+  }
+
+  const paymentMethod = getValue('paymentMethod').trim();
+  if (!paymentMethod) {
+    alert('Choose a payment method.');
     return;
   }
 
@@ -438,9 +504,7 @@ async function submitOrder() {
       phoneNumber,
       mileage: Number(getValue('mileageInput') || 0),
       amountPaid: Number(getValue('amountPaidInput') || 0),
-      discount: Number(getValue('discountInput') || 0),
-      tip: Number(getValue('tipInput') || 0),
-      paymentMethod: getValue('paymentMethod'),
+      paymentMethod,
       notes: getValue('notes')
     }));
 
@@ -451,7 +515,8 @@ async function submitOrder() {
 
     alert(res.message || 'Order submitted.');
     clearCart();
-    ['customerName', 'customerDiscord', 'phoneNumber', 'mileageInput', 'amountPaidInput', 'discountInput', 'tipInput', 'notes'].forEach(id => setValue(id, ''));
+    ['customerName', 'customerDiscord', 'phoneNumber', 'mileageInput', 'amountPaidInput', 'notes'].forEach(id => setValue(id, ''));
+    setValue('paymentMethod', '');
     await refreshBootstrap(false);
   } catch (err) {
     alert(err.message || 'Order failed.');
@@ -899,6 +964,11 @@ function renderSettingsForms() {
   setValue('settingsBankId', settings.bankId || '');
   setValue('settingsMileageRate', settings.mileageRate || 0);
 
+  setValue('saleEnabled', settings.saleEnabled || 'No');
+  setValue('salePercent', settings.salePercent || '0');
+  setValue('saleStart', toDateTimeLocal(settings.saleStart || ''));
+  setValue('saleEnd', toDateTimeLocal(settings.saleEnd || ''));
+
   setValue('raffleEnabled', settings.raffleEnabled || 'Yes');
   setValue('raffleMaxOverall', settings.raffleMaxOverall || '0');
   setValue('raffleMaxPerPerson', settings.raffleMaxPerPerson || '0');
@@ -935,6 +1005,30 @@ async function saveSettingsNow() {
     await portalRefreshNow();
   } catch (err) {
     alert(err.message || 'Could not save settings.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function saveSaleSettingsNow() {
+  showLoading('Saving', 'Saving sale timer...');
+  try {
+    const res = await api('saveSaleSettings', authPayload({
+      enabled: getValue('saleEnabled'),
+      percent: Number(getValue('salePercent') || 0),
+      start: fromDateTimeLocal(getValue('saleStart')),
+      end: fromDateTimeLocal(getValue('saleEnd'))
+    }));
+
+    if (!res.ok) {
+      alert(res.message || 'Could not save sale timer.');
+      return;
+    }
+
+    alert(res.message || 'Sale timer saved.');
+    await portalRefreshNow();
+  } catch (err) {
+    alert(err.message || 'Could not save sale timer.');
   } finally {
     hideLoading();
   }
@@ -1267,6 +1361,7 @@ function init() {
   $('saveAdBtn')?.addEventListener('click', saveAdNow);
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettingsNow);
+  $('saveSaleSettingsBtn')?.addEventListener('click', saveSaleSettingsNow);
   $('saveRaffleSettingsBtn')?.addEventListener('click', saveRaffleSettingsNow);
   $('saveThemeBtn')?.addEventListener('click', saveThemeNow);
 
@@ -1286,7 +1381,7 @@ function init() {
   $('paymentModalDelete')?.addEventListener('click', deletePaymentModal);
   $('paymentModalBackdrop')?.addEventListener('click', closePaymentModal);
 
-  ['mileageInput', 'amountPaidInput', 'discountInput', 'tipInput'].forEach(id => {
+  ['mileageInput', 'amountPaidInput'].forEach(id => {
     $(id)?.addEventListener('input', renderCart);
   });
 
