@@ -246,11 +246,26 @@
               <summary>General</summary>
               <div class="settings-popout-body">
                 <div class="form-grid">
-                  <input id="settingsPortalName" placeholder="Portal name">
-                  <input id="settingsPortalSubtitle" placeholder="Portal subtitle">
-                  <input id="settingsBankId" placeholder="Bank ID">
-                  <input id="settingsMileageRate" type="number" step="0.01" min="0" placeholder="Mileage rate">
-                  <textarea id="settingsAnnouncement" rows="3" placeholder="Announcement"></textarea>
+                  <label class="field-label">
+                    <span>Portal Name</span>
+                    <input id="settingsPortalName" placeholder="Portal name">
+                  </label>
+                  <label class="field-label">
+                    <span>Portal Subtitle</span>
+                    <input id="settingsPortalSubtitle" placeholder="Portal subtitle">
+                  </label>
+                  <label class="field-label">
+                    <span>Bank ID</span>
+                    <input id="settingsBankId" placeholder="Bank ID">
+                  </label>
+                  <label class="field-label">
+                    <span>Mileage Rate</span>
+                    <input id="settingsMileageRate" type="number" step="0.01" min="0" placeholder="Mileage rate">
+                  </label>
+                  <label class="field-label field-wide">
+                    <span>Announcement</span>
+                    <textarea id="settingsAnnouncement" rows="3" placeholder="Announcement"></textarea>
+                  </label>
                 </div>
                 <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save Settings</button>
               </div>
@@ -282,14 +297,29 @@
               <summary>Raffle Controls</summary>
               <div class="settings-popout-body">
                 <div class="form-grid">
-                  <select id="raffleEnabled">
-                    <option value="Yes">Enabled</option>
-                    <option value="No">Disabled</option>
-                  </select>
-                  <input id="raffleMaxOverall" type="number" min="0" step="1" placeholder="Max overall tickets">
-                  <input id="raffleMaxPerPerson" type="number" min="0" step="1" placeholder="Max per person">
-                  <input id="raffleStart" type="datetime-local">
-                  <input id="raffleEnd" type="datetime-local">
+                  <label class="field-label">
+                    <span>Raffle Status</span>
+                    <select id="raffleEnabled">
+                      <option value="Yes">Enabled</option>
+                      <option value="No">Disabled</option>
+                    </select>
+                  </label>
+                  <label class="field-label">
+                    <span>Max Overall Tickets</span>
+                    <input id="raffleMaxOverall" type="number" min="0" step="1" placeholder="Max overall tickets">
+                  </label>
+                  <label class="field-label">
+                    <span>Max Tickets Per Person</span>
+                    <input id="raffleMaxPerPerson" type="number" min="0" step="1" placeholder="Max per person">
+                  </label>
+                  <label class="field-label">
+                    <span>Start Date and Time</span>
+                    <input id="raffleStart" type="datetime-local">
+                  </label>
+                  <label class="field-label">
+                    <span>End Date and Time</span>
+                    <input id="raffleEnd" type="datetime-local">
+                  </label>
                 </div>
                 <button id="saveRaffleSettingsBtn" class="btn btn-primary" type="button">Save Raffle Controls</button>
               </div>
