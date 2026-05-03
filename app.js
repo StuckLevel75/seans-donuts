@@ -1222,23 +1222,53 @@ function renderEmployeesAdmin() {
   const wrap = $('employeesAdminList');
   if (!wrap) return;
 
-  const employees = getAdminEmployees();
+  const query = getValue('employeeSearchInput').trim().toLowerCase();
+  const employees = getAdminEmployees()
+    .map((item, index) => ({ item, index }))
+    .filter(entry => {
+      if (!query) return true;
+
+      const item = entry.item;
+      const hay = [
+        item.Name || item.name,
+        item.Email || item.email,
+        item.Username || item.username,
+        item.Role || item.role,
+        item.Active || item.active
+      ].join(' ').toLowerCase();
+
+      return hay.includes(query);
+    })
+    .sort((a, b) => {
+      const aActive = String(a.item.Active || a.item.active || 'Yes').toLowerCase() !== 'no';
+      const bActive = String(b.item.Active || b.item.active || 'Yes').toLowerCase() !== 'no';
+      if (aActive !== bActive) return aActive ? -1 : 1;
+
+      const aName = String(a.item.Name || a.item.name || '').toLowerCase();
+      const bName = String(b.item.Name || b.item.name || '').toLowerCase();
+      return aName.localeCompare(bName);
+    });
+
   if (!employees.length) {
-    wrap.innerHTML = '<div class="list-item"><p>No employees yet.</p></div>';
+    wrap.innerHTML = '<div class="list-item"><p>No employees found.</p></div>';
     return;
   }
 
-  wrap.innerHTML = employees.map((item, index) => {
+  wrap.innerHTML = employees.map(({ item, index }) => {
     const active = String(item.Active || item.active || 'Yes');
+    const isActive = active.toLowerCase() !== 'no';
     const role = item.Role || item.role || 'Employee';
     const name = item.Name || item.name || 'Unnamed Employee';
     const email = item.Email || item.email || '';
     const username = item.Username || item.username || '';
 
     return `
-      <div class="settings-entry-card">
+      <div class="settings-entry-card employee-card ${isActive ? 'employee-active' : 'employee-inactive'}">
         <div class="settings-entry-main">
-          <div class="settings-entry-title">${escapeHtml(name)}</div>
+          <div class="settings-entry-title">
+            ${escapeHtml(name)}
+            <span class="employee-status-pill">${isActive ? 'Active' : 'Inactive'}</span>
+          </div>
           <div class="settings-entry-sub">
             ${escapeHtml(role)} · ${escapeHtml(active)} · ${escapeHtml(username || email || 'No login set')}
           </div>
@@ -1636,6 +1666,11 @@ function init() {
   $('saveRolePermissionsBtn')?.addEventListener('click', saveRolePermissionsNow);
   $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
   $('addEmployeeRowBtn')?.addEventListener('click', () => openEmployeeModal(-1));
+  $('employeeSearchInput')?.addEventListener('input', renderEmployeesAdmin);
+  $('employeeSearchClearBtn')?.addEventListener('click', () => {
+    setValue('employeeSearchInput', '');
+    renderEmployeesAdmin();
+  });
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettingsNow);
   $('saveSaleSettingsBtn')?.addEventListener('click', saveSaleSettingsNow);
