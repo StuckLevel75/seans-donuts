@@ -10,7 +10,8 @@ const state = {
   cart: {},
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
   activeTab: 'dashboard',
-  loaded: {}
+  loaded: {},
+  saleTimerId: null
 };
 
 const tabs = [
@@ -195,6 +196,8 @@ function hasAnyPermission(keys) {
 }
 
 function canAccessTab(tab) {
+  if (tab.key === 'raffle' && !isRaffleActive()) return false;
+
   if (!tab.permission && !tab.anyPermission) return true;
   const perms = getPerms();
   if (tab.permission && perms[tab.permission]) return true;
@@ -204,6 +207,25 @@ function canAccessTab(tab) {
 
 function getVisibleTabs() {
   return tabs.filter(canAccessTab);
+}
+
+function isRaffleActive() {
+  const settings = state.bootstrap?.settings || {};
+  if (!state.bootstrap) return true;
+
+  const enabled = String(settings.raffleEnabled || 'Yes').trim().toLowerCase() === 'yes';
+  if (!enabled) return false;
+
+  const now = Date.now();
+  const startText = String(settings.raffleStart || '').trim();
+  const endText = String(settings.raffleEnd || '').trim();
+  const start = startText ? new Date(startText).getTime() : NaN;
+  const end = endText ? new Date(endText).getTime() : NaN;
+
+  if (!Number.isNaN(start) && now < start) return false;
+  if (!Number.isNaN(end) && now > end) return false;
+
+  return true;
 }
 
 function authPayload(extra = {}) {
@@ -350,6 +372,7 @@ function renderBootstrap() {
   setText('statSales', money(stats.totalSales || 0));
   setText('statEmployees', Number(stats.activeEmployees || 0));
   setText('statRaffle', Number(stats.raffleEntries || 0));
+  updateSaleBanner();
 
   const list = $('announcementsList');
   if (list) {
@@ -457,27 +480,76 @@ function getActiveSale() {
   const settings = state.bootstrap?.settings || {};
   const enabled = String(settings.saleEnabled || 'No').trim().toLowerCase() === 'yes';
   const percent = Math.max(0, Math.min(100, Number(settings.salePercent || 0)));
-
-  if (!enabled || percent <= 0) {
-    return { active: false, percent: 0 };
-  }
-
-  const now = Date.now();
   const startText = String(settings.saleStart || '').trim();
   const endText = String(settings.saleEnd || '').trim();
   const start = startText ? new Date(startText).getTime() : NaN;
   const end = endText ? new Date(endText).getTime() : NaN;
 
-  if (!Number.isNaN(start) && now < start) return { active: false, percent };
-  if (!Number.isNaN(end) && now > end) return { active: false, percent };
+  if (!enabled || percent <= 0) {
+    return { active: false, percent: 0, start, end };
+  }
 
-  return { active: true, percent };
+  const now = Date.now();
+
+  if (!Number.isNaN(start) && now < start) return { active: false, percent, start, end };
+  if (!Number.isNaN(end) && now > end) return { active: false, percent, start, end };
+
+  return { active: true, percent, start, end };
+}
+
+function getMileageRate() {
+  const rate = Number(state.bootstrap?.settings?.mileageRate || 50);
+  return rate > 0 ? rate : 50;
+}
+
+function formatCountdown(targetTime) {
+  if (!targetTime || Number.isNaN(targetTime)) return 'Active now';
+
+  const remaining = Math.max(0, targetTime - Date.now());
+  const totalSeconds = Math.floor(remaining / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
+function updateSaleBanner() {
+  const sale = getActiveSale();
+  const banner = $('saleBanner');
+  if (!banner) return;
+
+  if (!sale.active) {
+    banner.classList.add('hidden');
+    if (state.saleTimerId) {
+      window.clearInterval(state.saleTimerId);
+      state.saleTimerId = null;
+    }
+    return;
+  }
+
+  setText('saleBannerTitle', `${sale.percent}% off sale is live`);
+  setText('saleBannerText', 'Sale discount is applied automatically at checkout.');
+  setText('saleCountdown', sale.end && !Number.isNaN(sale.end)
+    ? `Ends in ${formatCountdown(sale.end)}`
+    : 'Active now'
+  );
+  banner.classList.remove('hidden');
+
+  if (!state.saleTimerId) {
+    state.saleTimerId = window.setInterval(updateSaleBanner, 1000);
+  }
 }
 
 function calculateCheckoutTotals() {
   const lines = getCartLines();
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const mileage = Number(getValue('mileageInput') || 0);
+  const mileageMiles = Number(getValue('mileageInput') || 0);
+  const mileageRate = getMileageRate();
+  const mileage = Math.max(0, mileageMiles * mileageRate);
   const amountPaid = Number(getValue('amountPaidInput') || 0);
   const sale = getActiveSale();
   const saleDiscount = sale.active ? Math.min(subtotal, subtotal * (sale.percent / 100)) : 0;
@@ -488,6 +560,8 @@ function calculateCheckoutTotals() {
   return {
     lines,
     subtotal,
+    mileageMiles,
+    mileageRate,
     mileage,
     amountPaid,
     sale,
@@ -516,6 +590,10 @@ function renderCart() {
   }
 
   setText('subtotalText', money(totals.subtotal));
+  setText('mileageLabelText', totals.mileageMiles > 0
+    ? `Mileage (${totals.mileageMiles} mi @ ${money(totals.mileageRate)}/mi)`
+    : `Mileage (${money(totals.mileageRate)}/mi)`
+  );
   setText('mileageText', money(totals.mileage));
   setText('saleLabelText', totals.sale.active ? `Sale (${totals.sale.percent}% off)` : 'Sale');
   setText('saleText', money(totals.saleDiscount));
@@ -573,6 +651,8 @@ async function submitOrder() {
     return;
   }
 
+  const totals = calculateCheckoutTotals();
+
   showLoading('Submitting', 'Saving order...');
   try {
     const res = await api('submitOrder', authPayload({
@@ -580,7 +660,8 @@ async function submitOrder() {
       customerName,
       customerDiscord,
       phoneNumber,
-      mileage: Number(getValue('mileageInput') || 0),
+      miles: totals.mileageMiles,
+      mileage: totals.mileage,
       amountPaid: Number(getValue('amountPaidInput') || 0),
       paymentMethod,
       notes: getValue('notes')
@@ -698,8 +779,13 @@ function logoutNow() {
   state.cart = {};
   state.loaded = {};
   state.activeTab = 'dashboard';
+  if (state.saleTimerId) {
+    window.clearInterval(state.saleTimerId);
+    state.saleTimerId = null;
+  }
 
   setValue('loginPin', '');
+  hideEl('saleBanner');
   showEl('loginView');
   hideEl('portalView');
 }
@@ -964,15 +1050,70 @@ function renderAds(ads) {
           <span>${escapeHtml(formatDate(ad['Created At']))}</span>
         </div>
         <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-secondary" type="button" data-copy-ad="${escapeHtml(id)}">Copy Post</button>
           <button class="btn btn-danger" type="button" data-delete-ad="${escapeHtml(id)}">Delete</button>
         </div>
       </div>
     `;
   }).join('');
 
+  list.querySelectorAll('[data-copy-ad]').forEach(btn => {
+    const ad = ads.find(item => String(item.ID || item.id || '') === btn.dataset.copyAd);
+    btn.addEventListener('click', () => copyText(buildAdCopy(ad?.Title || '', ad?.['Ad Text'] || '')));
+  });
+
   list.querySelectorAll('[data-delete-ad]').forEach(btn => {
     btn.addEventListener('click', () => deleteAd(btn.dataset.deleteAd));
   });
+}
+
+function buildAdCopy(title, text) {
+  const lines = [];
+  const cleanTitle = String(title || '').trim();
+  const cleanText = String(text || '').trim();
+  const sale = getActiveSale();
+
+  if (cleanTitle) lines.push(cleanTitle);
+  if (cleanText) lines.push(cleanText);
+  if (sale.active) lines.push(`${sale.percent}% off is active for a limited time.`);
+  lines.push("Visit Sean's Donuts today.");
+
+  return lines.join('\n\n');
+}
+
+function generateAdCopy() {
+  const title = getValue('adTitle').trim();
+  const text = getValue('adText').trim();
+
+  if (!title && !text) {
+    alert('Add an ad title or message first.');
+    return '';
+  }
+
+  const copy = buildAdCopy(title, text);
+  setValue('adGeneratedText', copy);
+  return copy;
+}
+
+async function copyText(text) {
+  const value = String(text || '').trim();
+  if (!value) {
+    alert('Nothing to copy yet.');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(value);
+    alert('Message copied.');
+  } catch (err) {
+    setValue('adGeneratedText', value);
+    alert('Copy blocked by browser. The message is ready in the copy box.');
+  }
+}
+
+function copyGeneratedAdCopy() {
+  const copy = getValue('adGeneratedText').trim() || generateAdCopy();
+  copyText(copy);
 }
 
 async function saveAdNow() {
@@ -1167,7 +1308,7 @@ function renderSettingsForms() {
   setValue('settingsAnnouncement', settings.announcement || '');
   setValue('settingsBankId', settings.bankId || '');
   setValue('settingsDiscordInviteUrl', settings.discordInviteUrl || '');
-  setValue('settingsMileageRate', settings.mileageRate || 0);
+  setValue('settingsMileageRate', settings.mileageRate || 50);
 
   setValue('saleEnabled', settings.saleEnabled || 'No');
   setValue('salePercent', settings.salePercent || '0');
@@ -1199,7 +1340,7 @@ async function saveSettingsNow() {
       announcement: getValue('settingsAnnouncement'),
       bankId: getValue('settingsBankId'),
       discordInviteUrl: getValue('settingsDiscordInviteUrl'),
-      mileageRate: Number(getValue('settingsMileageRate') || 0)
+      mileageRate: Number(getValue('settingsMileageRate') || 50)
     }));
 
     if (!res.ok) {
@@ -1316,6 +1457,7 @@ function renderEmployeesAdmin() {
         item.Name || item.name,
         item.Email || item.email,
         item.Username || item.username,
+        item['Personal Bank ID'] || item.personalBankId || item.BankID,
         item.Role || item.role,
         item.Active || item.active
       ].join(' ').toLowerCase();
@@ -1344,6 +1486,7 @@ function renderEmployeesAdmin() {
     const name = item.Name || item.name || 'Unnamed Employee';
     const email = item.Email || item.email || '';
     const username = item.Username || item.username || '';
+    const bankId = item['Personal Bank ID'] || item.personalBankId || item.BankID || '';
 
     const canEdit = canCurrentUserEditEmployee(item);
 
@@ -1357,6 +1500,7 @@ function renderEmployeesAdmin() {
           <div class="settings-entry-sub">
             ${escapeHtml(role)} · ${escapeHtml(active)} · ${escapeHtml(username || email || 'No login set')}
           </div>
+          ${bankId ? `<div class="settings-entry-sub">Bank ${escapeHtml(bankId)}</div>` : ''}
         </div>
         <button type="button" class="btn btn-secondary" data-open-employee="${index}" ${canEdit ? '' : 'disabled'}>
           ${canEdit ? 'Update' : 'Locked'}
@@ -1386,6 +1530,7 @@ function openEmployeeModal(index) {
   setValue('employeeModalEmail', item.Email || item.email || '');
   setValue('employeeModalUsername', item.Username || item.username || '');
   setValue('employeeModalPin', item.PIN || item.pin || '');
+  setValue('employeeModalBankId', item['Personal Bank ID'] || item.personalBankId || item.BankID || '');
   renderEmployeeRoleOptions(selectedRole);
   setValue('employeeModalActive', item.Active || item.active || 'Yes');
 
@@ -1417,6 +1562,7 @@ function readEmployeeModal() {
     Email: getValue('employeeModalEmail').trim(),
     Username: getValue('employeeModalUsername').trim(),
     PIN: getValue('employeeModalPin').trim(),
+    'Personal Bank ID': getValue('employeeModalBankId').trim(),
     Role: getValue('employeeModalRole') || 'Employee',
     Active: getValue('employeeModalActive') || 'Yes'
   };
@@ -1479,6 +1625,7 @@ async function saveEmployeesNow() {
         Email: item.Email || item.email || '',
         Username: item.Username || item.username || '',
         PIN: item.PIN || item.pin || '',
+        'Personal Bank ID': item['Personal Bank ID'] || item.personalBankId || item.BankID || '',
         Role: item.Role || item.role || 'Employee',
         Active: item.Active || item.active || 'Yes'
       }))
@@ -1768,6 +1915,8 @@ function init() {
   $('resetRaffleBtn')?.addEventListener('click', resetRaffle);
 
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
+  $('generateAdCopyBtn')?.addEventListener('click', generateAdCopy);
+  $('copyAdCopyBtn')?.addEventListener('click', copyGeneratedAdCopy);
   $('saveAdBtn')?.addEventListener('click', saveAdNow);
   $('saveRolePermissionsBtn')?.addEventListener('click', saveRolePermissionsNow);
   $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
