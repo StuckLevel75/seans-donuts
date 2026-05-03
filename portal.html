@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <nav class="site-nav portal-site-nav">
+    <a class="brand" href="index.html">Sean's Donuts</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="menu.html">Menu</a>
+      <a href="careers.html">Careers</a>
+      <a href="crew.html">Crew</a>
+      <a href="contact.html">Contact</a>
+      <a href="advertise.html">Advertise</a>
+      <a class="nav-portal" href="portal.html">Employee Portal</a>
+    </div>
+  </nav>
+
   <div id="loginView" class="login-page">
     <div class="login-card-v1">
       <div id="loginLogo" class="login-logo-v1">🍩</div>
@@ -199,6 +212,52 @@
 
           <div id="raffleWinner" class="winner-box"></div>
           <div id="raffleEntriesList" class="stack-list"></div>
+        </section>
+
+        <section id="applicationsSection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Applications</h2>
+              <p>Review submitted crew applications</p>
+            </div>
+            <span id="applicationsPendingBadge" class="count-badge">0 pending</span>
+          </div>
+
+          <div class="toolbar">
+            <input id="applicationSearchInput" placeholder="Search name, email, Discord, phone, or position">
+            <select id="applicationStatusFilter">
+              <option value="All">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Interview">Interview</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Denied">Denied</option>
+            </select>
+            <button id="applicationsRefreshBtn" class="btn btn-primary" type="button">Refresh</button>
+          </div>
+          <div id="applicationsList" class="response-grid"></div>
+        </section>
+
+        <section id="contactSection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Contact Messages</h2>
+              <p>Review messages from the public contact page</p>
+            </div>
+            <span id="contactNewBadge" class="count-badge">0 new</span>
+          </div>
+
+          <div class="toolbar">
+            <input id="contactSearchInput" placeholder="Search name, email, Discord, subject, or message">
+            <select id="contactStatusFilter">
+              <option value="All">All statuses</option>
+              <option value="New">New</option>
+              <option value="Open">Open</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Archived">Archived</option>
+            </select>
+            <button id="contactRefreshBtn" class="btn btn-primary" type="button">Refresh</button>
+          </div>
+          <div id="contactMessagesList" class="response-grid"></div>
         </section>
 
         <section id="adsSection" class="page-panel hidden">
@@ -503,6 +562,38 @@
         <button id="employeeModalDeactivate" class="btn btn-danger" type="button">Deactivate</button>
         <button id="employeeModalCancel" class="btn btn-secondary" type="button">Cancel</button>
         <button id="employeeModalSave" class="btn btn-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="applicationModalBackdrop" class="modal-backdrop hidden"></div>
+  <div id="applicationModal" class="settings-modal hidden">
+    <div class="settings-modal-card large-modal-card">
+      <div class="settings-modal-header">
+        <h2 id="applicationModalTitle">Application</h2>
+        <button id="applicationModalClose" type="button">Ã—</button>
+      </div>
+      <div id="applicationModalBody" class="application-detail-grid"></div>
+      <div class="settings-modal-body">
+        <input id="applicationModalRow" type="hidden">
+        <label class="field-label">
+          <span>Status</span>
+          <select id="applicationModalStatus">
+            <option value="Pending">Pending</option>
+            <option value="Interview">Interview</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Denied">Denied</option>
+          </select>
+        </label>
+        <label class="field-label">
+          <span>Review Notes</span>
+          <textarea id="applicationModalNotes" rows="4" placeholder="Optional notes"></textarea>
+        </label>
+      </div>
+      <div class="settings-modal-footer">
+        <button id="applicationModalArchive" class="btn btn-danger" type="button">Archive</button>
+        <button id="applicationModalCancel" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="applicationModalSave" class="btn btn-primary" type="button">Save Review</button>
       </div>
     </div>
   </div>
