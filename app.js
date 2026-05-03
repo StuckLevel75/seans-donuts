@@ -9,6 +9,8 @@ const state = {
   products: [],
   cart: {},
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
+  applications: [],
+  contactMessages: [],
   activeTab: 'dashboard',
   loaded: {},
   saleTimerId: null
@@ -20,6 +22,8 @@ const tabs = [
   { key: 'orders', label: 'Orders', permission: 'canViewOrders' },
   { key: 'rewards', label: 'Rewards', permission: 'canViewRewards' },
   { key: 'raffle', label: 'Raffle', permission: 'canViewRaffle' },
+  { key: 'applications', label: 'Applications', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
+  { key: 'contact', label: 'Contact', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
   { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner'] },
   { key: 'payroll', label: 'Payroll', permission: 'canViewPayroll' },
   { key: 'employees', label: 'Employees', anyPermission: ['canManageEmployees', 'isOwner'] },
@@ -57,6 +61,14 @@ function setValue(id, value) {
 function getValue(id, fallback = '') {
   const el = $(id);
   return el ? el.value : fallback;
+}
+
+function debounce(fn, delay = 250) {
+  let timer = null;
+  return (...args) => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => fn(...args), delay);
+  };
 }
 
 function showEl(id) {
@@ -289,6 +301,8 @@ function openTab(tabKey) {
 
   if (tabKey === 'orders') loadOrders();
   if (tabKey === 'raffle') loadRaffleOverview();
+  if (tabKey === 'applications') loadApplications();
+  if (tabKey === 'contact') loadContactMessages();
   if (tabKey === 'ads') loadAds();
   if (tabKey === 'payroll') loadPayroll();
   if (tabKey === 'employees') loadAdminData();
@@ -1010,6 +1024,251 @@ function renderPayroll(rows) {
       </div>
     </div>
   `).join('');
+}
+
+async function loadApplications() {
+  const list = $('applicationsList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading applications...</p></div>';
+
+  try {
+    const res = await api('loadApplications', authPayload({
+      status: getValue('applicationStatusFilter', 'All'),
+      query: getValue('applicationSearchInput')
+    }));
+
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load applications.')}</p></div>`;
+      return;
+    }
+
+    state.applications = res.applications || [];
+    setText('applicationsPendingBadge', `${Number(res.pendingCount || 0)} pending`);
+    renderApplications();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load applications.')}</p></div>`;
+  }
+}
+
+function renderApplications() {
+  const list = $('applicationsList');
+  if (!list) return;
+
+  const applications = state.applications || [];
+  if (!applications.length) {
+    list.innerHTML = '<div class="list-item"><p>No applications found.</p></div>';
+    return;
+  }
+
+  list.innerHTML = applications.map(app => {
+    const rowNumber = app._rowNumber || '';
+    const status = String(app.Status || 'Pending');
+    return `
+      <div class="response-card">
+        <div class="response-card-header">
+          <div>
+            <h4>${escapeHtml(app.Name || 'Applicant')}</h4>
+            <p>${escapeHtml(app.Position || 'Position not selected')} · ${escapeHtml(formatDate(app.Timestamp))}</p>
+          </div>
+          <span class="status-pill status-${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span>
+        </div>
+        <div class="item-meta">
+          <span>${escapeHtml(app.Email || '')}</span>
+          <span>${escapeHtml(app.Discord || '')}</span>
+          <span>${escapeHtml(app.Phone || '')}</span>
+        </div>
+        <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-primary" type="button" data-view-application="${escapeHtml(rowNumber)}">View Full Application</button>
+          <button class="btn btn-secondary" type="button" data-app-status="Interview" data-app-row="${escapeHtml(rowNumber)}">Interview</button>
+          <button class="btn btn-secondary" type="button" data-app-status="Accepted" data-app-row="${escapeHtml(rowNumber)}">Accept</button>
+          <button class="btn btn-danger" type="button" data-app-status="Denied" data-app-row="${escapeHtml(rowNumber)}">Deny</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-view-application]').forEach(btn => {
+    btn.addEventListener('click', () => openApplicationModal(btn.dataset.viewApplication));
+  });
+
+  list.querySelectorAll('[data-app-status]').forEach(btn => {
+    btn.addEventListener('click', () => updateApplicationStatus(btn.dataset.appRow, btn.dataset.appStatus));
+  });
+}
+
+function openApplicationModal(rowNumber) {
+  const app = (state.applications || []).find(item => String(item._rowNumber || '') === String(rowNumber));
+  if (!app) return;
+
+  setText('applicationModalTitle', app.Name || 'Application');
+  setValue('applicationModalRow', app._rowNumber || '');
+  setValue('applicationModalStatus', app.Status || 'Pending');
+  setValue('applicationModalNotes', app['Review Notes'] || '');
+
+  const body = $('applicationModalBody');
+  if (body) {
+    const details = [
+      ['Name', app.Name],
+      ['Email', app.Email],
+      ['Discord', app.Discord],
+      ['Phone', app.Phone],
+      ['Date of Birth', app['Date of Birth']],
+      ['Time Zone', app['Time Zone']],
+      ['Position', app.Position],
+      ['Submitted', formatDate(app.Timestamp)],
+      ['Why', app.Why, true],
+      ['Skill', app.Skill, true],
+      ['Flaw', app.Flaw, true],
+      ['Customer Scenario', app['Customer Scenario'], true],
+      ['Questions', app.Questions, true],
+      ['Reviewed By', app['Reviewed By']],
+      ['Current Notes', app['Review Notes'], true]
+    ];
+
+    body.innerHTML = details.map(([label, value, wide]) => `
+      <div class="detail-block ${wide ? 'detail-block-wide' : ''}">
+        <span class="detail-label">${escapeHtml(label)}</span>
+        <div class="detail-value">${escapeHtml(value || '-')}</div>
+      </div>
+    `).join('');
+  }
+
+  showEl('applicationModalBackdrop');
+  showEl('applicationModal');
+}
+
+function closeApplicationModal() {
+  hideEl('applicationModalBackdrop');
+  hideEl('applicationModal');
+}
+
+async function saveApplicationReview(archived = false) {
+  const rowNumber = getValue('applicationModalRow');
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating application...');
+  try {
+    const res = await api('updateApplication', authPayload({
+      rowNumber,
+      status: getValue('applicationModalStatus'),
+      notes: getValue('applicationModalNotes'),
+      archived: archived ? 'Yes' : 'No'
+    }));
+
+    if (!res.ok) {
+      alert(res.message || 'Could not update application.');
+      return;
+    }
+
+    closeApplicationModal();
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Could not update application.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function updateApplicationStatus(rowNumber, status) {
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating application...');
+  try {
+    const res = await api('updateApplication', authPayload({ rowNumber, status }));
+    if (!res.ok) {
+      alert(res.message || 'Could not update application.');
+      return;
+    }
+
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Could not update application.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function loadContactMessages() {
+  const list = $('contactMessagesList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading contact messages...</p></div>';
+
+  try {
+    const res = await api('loadContactMessages', authPayload({
+      status: getValue('contactStatusFilter', 'All'),
+      query: getValue('contactSearchInput')
+    }));
+
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load contact messages.')}</p></div>`;
+      return;
+    }
+
+    state.contactMessages = res.messages || [];
+    setText('contactNewBadge', `${Number(res.newCount || 0)} new`);
+    renderContactMessages();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load contact messages.')}</p></div>`;
+  }
+}
+
+function renderContactMessages() {
+  const list = $('contactMessagesList');
+  if (!list) return;
+
+  const messages = state.contactMessages || [];
+  if (!messages.length) {
+    list.innerHTML = '<div class="list-item"><p>No contact messages found.</p></div>';
+    return;
+  }
+
+  list.innerHTML = messages.map(message => {
+    const rowNumber = message._rowNumber || '';
+    const status = String(message.Status || 'New');
+    return `
+      <div class="response-card">
+        <div class="response-card-header">
+          <div>
+            <h4>${escapeHtml(message.Subject || 'Website message')}</h4>
+            <p>${escapeHtml(message.Name || 'Guest')} · ${escapeHtml(formatDate(message.Timestamp))}</p>
+          </div>
+          <span class="status-pill status-${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span>
+        </div>
+        <p>${escapeHtml(message.Message || '')}</p>
+        <div class="item-meta">
+          <span>${escapeHtml(message.Email || '')}</span>
+          <span>${escapeHtml(message.Discord || '')}</span>
+          <span>${escapeHtml(message.Phone || '')}</span>
+        </div>
+        <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-secondary" type="button" data-contact-status="Open" data-contact-row="${escapeHtml(rowNumber)}">Mark Open</button>
+          <button class="btn btn-primary" type="button" data-contact-status="Resolved" data-contact-row="${escapeHtml(rowNumber)}">Resolve</button>
+          <button class="btn btn-danger" type="button" data-contact-status="Archived" data-contact-row="${escapeHtml(rowNumber)}">Archive</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-contact-status]').forEach(btn => {
+    btn.addEventListener('click', () => updateContactMessage(btn.dataset.contactRow, btn.dataset.contactStatus));
+  });
+}
+
+async function updateContactMessage(rowNumber, status) {
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating message...');
+  try {
+    const res = await api('updateContactMessage', authPayload({ rowNumber, status }));
+    if (!res.ok) {
+      alert(res.message || 'Could not update message.');
+      return;
+    }
+
+    await loadContactMessages();
+  } catch (err) {
+    alert(err.message || 'Could not update message.');
+  } finally {
+    hideLoading();
+  }
 }
 
 async function loadAds() {
@@ -1913,6 +2172,19 @@ function init() {
   $('drawRaffleBtn')?.addEventListener('click', drawRaffleWinner);
   $('clearRaffleWinnerBtn')?.addEventListener('click', clearRaffleWinner);
   $('resetRaffleBtn')?.addEventListener('click', resetRaffle);
+
+  $('applicationsRefreshBtn')?.addEventListener('click', loadApplications);
+  $('applicationStatusFilter')?.addEventListener('change', loadApplications);
+  $('applicationSearchInput')?.addEventListener('input', debounce(loadApplications, 250));
+  $('applicationModalClose')?.addEventListener('click', closeApplicationModal);
+  $('applicationModalCancel')?.addEventListener('click', closeApplicationModal);
+  $('applicationModalSave')?.addEventListener('click', () => saveApplicationReview(false));
+  $('applicationModalArchive')?.addEventListener('click', () => saveApplicationReview(true));
+  $('applicationModalBackdrop')?.addEventListener('click', closeApplicationModal);
+
+  $('contactRefreshBtn')?.addEventListener('click', loadContactMessages);
+  $('contactStatusFilter')?.addEventListener('change', loadContactMessages);
+  $('contactSearchInput')?.addEventListener('input', debounce(loadContactMessages, 250));
 
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
   $('generateAdCopyBtn')?.addEventListener('click', generateAdCopy);
