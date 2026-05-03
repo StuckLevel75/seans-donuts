@@ -1,4 +1,4 @@
-const SD_API_URL = 'https://script.google.com/macros/s/AKfycbw8QmZ4jl1ym9RwOlqP5_9XVgQNxAZiyMkA9YVYT9ag4dM-BPHaurTIw0aULBJDL5Xvwg/exec';
+const SD_API_URL = '';
 
 const state = {
   apiUrl: SD_API_URL || localStorage.getItem('sd_api_url') || '',
@@ -464,7 +464,7 @@ async function refreshBootstrap(showOverlay = true) {
   if (showOverlay) showLoading('Refreshing', 'Reloading portal...');
 
   try {
-    const boot = await api('getPortalBootstrap', {});
+    const boot = await api('getPortalBootstrap', state.session ? authPayload() : {});
     if (!boot.ok) {
       alert(boot.message || 'Refresh failed.');
       return false;
@@ -516,8 +516,17 @@ async function loginNow() {
     state.sessionPin = pin;
     state.products = Array.isArray(res.products) ? res.products : [];
 
-    const ok = await refreshBootstrap(false);
-    if (!ok) return;
+    if (res.bootstrap && res.bootstrap.ok) {
+      state.bootstrap = res.bootstrap;
+      fillHeader();
+      renderBootstrap();
+      renderNav();
+      buildProducts();
+      renderCart();
+    } else {
+      const ok = await refreshBootstrap(false);
+      if (!ok) return;
+    }
 
     hideEl('loginView');
     showEl('portalView');
