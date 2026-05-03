@@ -19,9 +19,11 @@ const tabs = [
   { key: 'orders', label: 'Orders', permission: 'canViewOrders' },
   { key: 'rewards', label: 'Rewards', permission: 'canViewRewards' },
   { key: 'raffle', label: 'Raffle', permission: 'canViewRaffle' },
-  { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner', 'isAdmin', 'isManager'] },
+  { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner'] },
   { key: 'payroll', label: 'Payroll', permission: 'canViewPayroll' },
-  { key: 'settings', label: 'Settings', anyPermission: ['canViewSettings', 'isOwner', 'isAdmin'] }
+  { key: 'employees', label: 'Employees', anyPermission: ['canManageEmployees', 'isOwner'] },
+  { key: 'permissions', label: 'Permissions', anyPermission: ['canManagePermissions', 'isOwner'] },
+  { key: 'settings', label: 'Settings', anyPermission: ['canViewSettings', 'isOwner'] }
 ];
 
 function $(id) {
@@ -123,7 +125,7 @@ function canAccessTab(tab) {
   const perms = getPerms();
   if (tab.permission && perms[tab.permission]) return true;
   if (tab.anyPermission && hasAnyPermission(tab.anyPermission)) return true;
-  return getRole() === 'owner' || getRole() === 'admin';
+  return getRole() === 'owner';
 }
 
 function getVisibleTabs() {
@@ -193,6 +195,8 @@ function openTab(tabKey) {
   if (tabKey === 'raffle') loadRaffleOverview();
   if (tabKey === 'ads') loadAds();
   if (tabKey === 'payroll') loadPayroll();
+  if (tabKey === 'employees') loadAdminData();
+  if (tabKey === 'permissions') loadRolePermissions();
   if (tabKey === 'settings') loadAdminData();
 }
 
@@ -552,7 +556,7 @@ async function refreshBootstrap(showOverlay = true) {
 
 async function portalRefreshNow() {
   const ok = await refreshBootstrap(true);
-  if (ok && state.activeTab === 'settings') await loadAdminData();
+  if (ok && (state.activeTab === 'settings' || state.activeTab === 'employees')) await loadAdminData();
 }
 
 async function loginNow() {
@@ -939,7 +943,15 @@ async function deleteAd(id) {
 }
 
 async function loadAdminData() {
-  if (!state.session || !hasAnyPermission(['canViewSettings', 'isOwner', 'isAdmin'])) return;
+  if (!state.session || !hasAnyPermission([
+    'canViewSettings',
+    'canManageProducts',
+    'canManageEmployees',
+    'canManageTheme',
+    'canManageUIText',
+    'canManagePaymentMethods',
+    'isOwner'
+  ])) return;
 
   try {
     const res = await api('getAdminData', authPayload());
@@ -947,11 +959,122 @@ async function loadAdminData() {
 
     state.adminData = res;
     renderSettingsForms();
+    renderEmployeesAdmin();
     renderProductsAdmin();
     renderPaymentMethodsAdmin();
   } catch (err) {
     console.error(err);
   }
+}
+
+async function loadRolePermissions() {
+  const wrap = $('rolePermissionsTable');
+  if (!wrap) return;
+
+  wrap.innerHTML = '<div class="list-item"><p>Loading permissions...</p></div>';
+
+  try {
+    const res = await api('getRolePermissions', authPayload());
+    if (!res.ok) {
+      wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load permissions.')}</p></div>`;
+      return;
+    }
+
+    state.rolePermissions = res;
+    renderRolePermissions();
+  } catch (err) {
+    wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load permissions.')}</p></div>`;
+  }
+}
+
+function renderRolePermissions() {
+  const wrap = $('rolePermissionsTable');
+  const data = state.rolePermissions || {};
+  const roles = data.roles || [];
+  const permissions = data.permissions || [];
+  const matrix = data.matrix || {};
+
+  if (!wrap) return;
+
+  if (!roles.length || !permissions.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No permissions found.</p></div>';
+    return;
+  }
+
+  const header = `
+    <div class="permissions-row permissions-header">
+      <div class="permissions-cell permission-name">Permission</div>
+      ${roles.map(role => `<div class="permissions-cell">${escapeHtml(role)}</div>`).join('')}
+    </div>
+  `;
+
+  const rows = permissions.map(permission => `
+    <div class="permissions-row">
+      <div class="permissions-cell permission-name">${escapeHtml(permission.label || permission.key)}</div>
+      ${roles.map(role => {
+        const isOwner = role.toLowerCase() === 'owner';
+        const isManagePermissions = permission.key === 'canManagePermissions';
+        const checked = !!(matrix[role] && matrix[role][permission.key]);
+        const disabled = isOwner || isManagePermissions;
+        return `
+          <label class="permission-toggle">
+            <input
+              type="checkbox"
+              data-role="${escapeHtml(role)}"
+              data-permission="${escapeHtml(permission.key)}"
+              ${checked ? 'checked' : ''}
+              ${disabled ? 'disabled' : ''}
+            >
+            <span></span>
+          </label>
+        `;
+      }).join('')}
+    </div>
+  `).join('');
+
+  wrap.innerHTML = header + rows;
+}
+
+async function saveRolePermissionsNow() {
+  const data = state.rolePermissions || {};
+  const roles = data.roles || [];
+  const permissions = data.permissions || [];
+
+  if (!roles.length || !permissions.length) {
+    alert('Load permissions first.');
+    return;
+  }
+
+  const matrix = {};
+  roles.forEach(role => {
+    matrix[role] = {};
+    permissions.forEach(permission => {
+      const input = document.querySelector(`[data-role="${cssEscape(role)}"][data-permission="${cssEscape(permission.key)}"]`);
+      matrix[role][permission.key] = input ? input.checked : !!(data.matrix?.[role]?.[permission.key]);
+    });
+  });
+
+  showLoading('Saving', 'Saving role permissions...');
+  try {
+    const res = await api('saveRolePermissions', authPayload({ matrix }));
+    if (!res.ok) {
+      alert(res.message || 'Could not save permissions.');
+      return;
+    }
+
+    alert(res.message || 'Role permissions saved.');
+    state.rolePermissions.matrix = res.matrix || matrix;
+    renderRolePermissions();
+  } catch (err) {
+    alert(err.message || 'Could not save permissions.');
+  } finally {
+    hideLoading();
+  }
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+  return String(value).replace(/"/g, '\\"');
 }
 
 function renderSettingsForms() {
@@ -1084,6 +1207,157 @@ async function saveThemeNow() {
     await portalRefreshNow();
   } catch (err) {
     alert(err.message || 'Could not save theme.');
+  } finally {
+    hideLoading();
+  }
+}
+
+function getAdminEmployees() {
+  if (!state.adminData) state.adminData = {};
+  if (!Array.isArray(state.adminData.employees)) state.adminData.employees = [];
+  return state.adminData.employees;
+}
+
+function renderEmployeesAdmin() {
+  const wrap = $('employeesAdminList');
+  if (!wrap) return;
+
+  const employees = getAdminEmployees();
+  if (!employees.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No employees yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = employees.map((item, index) => {
+    const active = String(item.Active || item.active || 'Yes');
+    const role = item.Role || item.role || 'Employee';
+    const name = item.Name || item.name || 'Unnamed Employee';
+    const email = item.Email || item.email || '';
+    const username = item.Username || item.username || '';
+
+    return `
+      <div class="settings-entry-card">
+        <div class="settings-entry-main">
+          <div class="settings-entry-title">${escapeHtml(name)}</div>
+          <div class="settings-entry-sub">
+            ${escapeHtml(role)} · ${escapeHtml(active)} · ${escapeHtml(username || email || 'No login set')}
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary" data-open-employee="${index}">Update</button>
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('[data-open-employee]').forEach(btn => {
+    btn.addEventListener('click', () => openEmployeeModal(Number(btn.dataset.openEmployee)));
+  });
+}
+
+function openEmployeeModal(index) {
+  const employees = getAdminEmployees();
+  const item = index >= 0 ? (employees[index] || {}) : {};
+
+  setText('employeeModalTitle', index >= 0 ? 'Update Employee' : 'Add Employee');
+  setValue('employeeModalIndex', index >= 0 ? index : '');
+  setValue('employeeModalName', item.Name || item.name || '');
+  setValue('employeeModalEmail', item.Email || item.email || '');
+  setValue('employeeModalUsername', item.Username || item.username || '');
+  setValue('employeeModalPin', item.PIN || item.pin || '');
+  setValue('employeeModalRole', item.Role || item.role || 'Employee');
+  setValue('employeeModalActive', item.Active || item.active || 'Yes');
+
+  showEl('employeeModalBackdrop');
+  showEl('employeeModal');
+}
+
+function closeEmployeeModal() {
+  hideEl('employeeModalBackdrop');
+  hideEl('employeeModal');
+}
+
+function readEmployeeModal() {
+  return {
+    Name: getValue('employeeModalName').trim(),
+    Email: getValue('employeeModalEmail').trim(),
+    Username: getValue('employeeModalUsername').trim(),
+    PIN: getValue('employeeModalPin').trim(),
+    Role: getValue('employeeModalRole') || 'Employee',
+    Active: getValue('employeeModalActive') || 'Yes'
+  };
+}
+
+function saveEmployeeModal() {
+  const employees = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+  const item = readEmployeeModal();
+
+  if (!item.Name) {
+    alert('Employee name is required.');
+    return;
+  }
+
+  if (!item.Email && !item.Username) {
+    alert('Add an email or username for login.');
+    return;
+  }
+
+  if (!item.PIN) {
+    alert('PIN is required.');
+    return;
+  }
+
+  if (index >= 0) employees[index] = item;
+  else employees.push(item);
+
+  renderEmployeesAdmin();
+  closeEmployeeModal();
+}
+
+function deactivateEmployeeModal() {
+  const employees = getAdminEmployees();
+  const rawIndex = getValue('employeeModalIndex');
+  const index = rawIndex === '' ? -1 : Number(rawIndex);
+
+  if (index < 0) {
+    closeEmployeeModal();
+    return;
+  }
+
+  if (!window.confirm('Deactivate this employee login?')) return;
+
+  const item = readEmployeeModal();
+  item.Active = 'No';
+  employees[index] = item;
+
+  renderEmployeesAdmin();
+  closeEmployeeModal();
+}
+
+async function saveEmployeesNow() {
+  showLoading('Saving', 'Saving employees...');
+  try {
+    const employees = getAdminEmployees()
+      .map(item => ({
+        Name: item.Name || item.name || '',
+        Email: item.Email || item.email || '',
+        Username: item.Username || item.username || '',
+        PIN: item.PIN || item.pin || '',
+        Role: item.Role || item.role || 'Employee',
+        Active: item.Active || item.active || 'Yes'
+      }))
+      .filter(item => item.Name.trim() || item.Email.trim() || item.Username.trim());
+
+    const res = await api('saveEmployees', authPayload({ employees }));
+    if (!res.ok) {
+      alert(res.message || 'Could not save employees.');
+      return;
+    }
+
+    alert(res.message || 'Employees saved.');
+    await loadAdminData();
+  } catch (err) {
+    alert(err.message || 'Could not save employees.');
   } finally {
     hideLoading();
   }
@@ -1359,6 +1633,9 @@ function init() {
 
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
   $('saveAdBtn')?.addEventListener('click', saveAdNow);
+  $('saveRolePermissionsBtn')?.addEventListener('click', saveRolePermissionsNow);
+  $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
+  $('addEmployeeRowBtn')?.addEventListener('click', () => openEmployeeModal(-1));
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettingsNow);
   $('saveSaleSettingsBtn')?.addEventListener('click', saveSaleSettingsNow);
@@ -1380,6 +1657,12 @@ function init() {
   $('paymentModalSave')?.addEventListener('click', savePaymentModal);
   $('paymentModalDelete')?.addEventListener('click', deletePaymentModal);
   $('paymentModalBackdrop')?.addEventListener('click', closePaymentModal);
+
+  $('employeeModalClose')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalCancel')?.addEventListener('click', closeEmployeeModal);
+  $('employeeModalSave')?.addEventListener('click', saveEmployeeModal);
+  $('employeeModalDeactivate')?.addEventListener('click', deactivateEmployeeModal);
+  $('employeeModalBackdrop')?.addEventListener('click', closeEmployeeModal);
 
   ['mileageInput', 'amountPaidInput'].forEach(id => {
     $(id)?.addEventListener('input', renderCart);
