@@ -117,21 +117,22 @@
               <div id="cartList" class="stack-list"></div>
 
               <div class="checkout-grid">
-                <input id="customerName" placeholder="Customer Name">
-                <input id="customerDiscord" placeholder="Discord">
-                <input id="phoneNumber" placeholder="Phone">
-                <select id="paymentMethod"></select>
+                <input id="customerName" placeholder="Customer Name (Optional)">
+                <input id="customerDiscord" class="raffle-contact-field hidden" placeholder="Discord (Required for raffle)">
+                <input id="phoneNumber" class="raffle-contact-field hidden" placeholder="Phone (Required for raffle)">
+                <div id="raffleContactNotice" class="raffle-contact-notice raffle-contact-field hidden">
+                  Discord and phone are required for raffle tickets.
+                </div>
+                <select id="paymentMethod" required></select>
                 <input id="mileageInput" type="number" step="0.01" min="0" placeholder="Mileage">
                 <input id="amountPaidInput" type="number" step="0.01" min="0" placeholder="Amount Paid">
-                <input id="discountInput" type="number" step="0.01" min="0" placeholder="Discount">
-                <input id="tipInput" type="number" step="0.01" min="0" placeholder="Tip">
                 <textarea id="notes" rows="3" placeholder="Notes"></textarea>
               </div>
 
               <div class="totals-box">
                 <div><span>Subtotal</span><span id="subtotalText">$0.00</span></div>
                 <div><span>Mileage</span><span id="mileageText">$0.00</span></div>
-                <div><span>Discount</span><span id="discountText">$0.00</span></div>
+                <div><span id="saleLabelText">Sale</span><span id="saleText">$0.00</span></div>
                 <div><span>Tip</span><span id="tipText">$0.00</span></div>
                 <div><span>Amount Paid</span><span id="amountPaidText">$0.00</span></div>
                 <div class="total-row"><span>Total</span><span id="totalText">$0.00</span></div>
@@ -290,6 +291,34 @@
                   <button id="addPaymentMethodRowBtn" class="btn btn-secondary" type="button">Add Method</button>
                   <button id="savePaymentMethodsBtn" class="btn btn-primary" type="button">Save Methods</button>
                 </div>
+              </div>
+            </details>
+
+            <details class="settings-popout">
+              <summary>Sale Timer</summary>
+              <div class="settings-popout-body">
+                <div class="form-grid">
+                  <label class="field-label">
+                    <span>Sale Status</span>
+                    <select id="saleEnabled">
+                      <option value="No">Disabled</option>
+                      <option value="Yes">Enabled</option>
+                    </select>
+                  </label>
+                  <label class="field-label">
+                    <span>Sale Percent Off</span>
+                    <input id="salePercent" type="number" min="0" max="100" step="0.01" placeholder="Example: 15">
+                  </label>
+                  <label class="field-label">
+                    <span>Start Date and Time</span>
+                    <input id="saleStart" type="datetime-local">
+                  </label>
+                  <label class="field-label">
+                    <span>End Date and Time</span>
+                    <input id="saleEnd" type="datetime-local">
+                  </label>
+                </div>
+                <button id="saveSaleSettingsBtn" class="btn btn-primary" type="button">Save Sale Timer</button>
               </div>
             </details>
 
