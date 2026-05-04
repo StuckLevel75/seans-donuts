@@ -131,6 +131,7 @@ function showWebsiteSalePopup(sale) {
 
 function initHeroRotators() {
   document.querySelectorAll('[data-hero-rotator]').forEach(hero => {
+    const heroImage = hero.querySelector('[data-hero-image]');
     const images = String(hero.dataset.heroImages || '')
       .split(',')
       .map(path => path.trim())
@@ -149,6 +150,7 @@ function initHeroRotators() {
       testImage.onload = () => {
         index = nextIndex % images.length;
         hero.style.setProperty('--hero-image', `url("${imagePath}")`);
+        if (heroImage) heroImage.src = imagePath;
       };
 
       testImage.onerror = () => {
