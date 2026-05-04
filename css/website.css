@@ -84,14 +84,31 @@ a {
 .hero-home {
   color: #fff;
   --hero-image: url("/assets/food.png");
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.7fr);
+  gap: clamp(24px, 5vw, 64px);
   background:
-    linear-gradient(90deg, rgba(21, 16, 12, 0.86) 0%, rgba(21, 16, 12, 0.42) 68%, rgba(21, 16, 12, 0.2) 100%),
+    linear-gradient(90deg, rgba(21, 16, 12, 0.94) 0%, rgba(21, 16, 12, 0.82) 100%),
     var(--hero-image) center / cover;
   transition: background-image 350ms ease;
 }
 
 .hero-content {
   max-width: 650px;
+}
+
+.hero-photo-frame {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+}
+
+.hero-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
 
 .eyebrow {
@@ -429,5 +446,9 @@ a {
 
   .hero {
     min-height: 68vh;
+  }
+
+  .hero-home {
+    grid-template-columns: 1fr;
   }
 }
