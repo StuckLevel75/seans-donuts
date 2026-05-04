@@ -304,6 +304,68 @@
           </div>
         </section>
 
+        <section id="bankSection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Bank</h2>
+              <p>Owner/Admin balance, order deposits, and expense withdrawals</p>
+            </div>
+            <button id="bankRefreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+          </div>
+
+          <div class="bank-summary">
+            <div class="bank-summary-card bank-balance-card">
+              <span>Current Balance</span>
+              <strong id="bankBalanceText">$0.00</strong>
+            </div>
+            <div class="bank-summary-card">
+              <span>Money In</span>
+              <strong id="bankIncomeText">$0.00</strong>
+            </div>
+            <div class="bank-summary-card">
+              <span>Money Out</span>
+              <strong id="bankExpenseText">$0.00</strong>
+            </div>
+            <div class="bank-summary-card">
+              <span>Entries</span>
+              <strong id="bankTransactionCountText">0</strong>
+            </div>
+          </div>
+
+          <div class="bank-layout">
+            <div class="card">
+              <h3>Record Money Movement</h3>
+              <div class="form-grid">
+                <label class="field-label">
+                  <span>Type</span>
+                  <select id="bankTransactionType">
+                    <option value="Expense">Expense / Money Out</option>
+                    <option value="Manual Deposit">Manual Deposit / Money In</option>
+                  </select>
+                </label>
+                <label class="field-label">
+                  <span>Amount</span>
+                  <input id="bankTransactionAmount" type="number" min="0" step="0.01" placeholder="0.00">
+                </label>
+                <label class="field-label">
+                  <span>Category</span>
+                  <input id="bankTransactionCategory" placeholder="Example: Inventory, Payroll, Supplies">
+                </label>
+                <label class="field-label field-wide">
+                  <span>Description</span>
+                  <textarea id="bankTransactionDescription" rows="3" placeholder="What was this for?"></textarea>
+                </label>
+              </div>
+              <button id="saveBankTransactionBtn" class="btn btn-primary" type="button">Save Bank Entry</button>
+            </div>
+
+            <div class="card">
+              <h3>Recent Activity</h3>
+              <div id="bankTransactionsList" class="stack-list"></div>
+            </div>
+          </div>
+        </section>
+
         <section id="adsSection" class="page-panel hidden">
           <div class="section-heading">
             <div>
