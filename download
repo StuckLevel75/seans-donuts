@@ -1,0 +1,23 @@
+# Local/generated files
+*.zip
+*.log
+*.tmp
+
+# Operating system clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor folders
+.vscode/
+.idea/
+
+# Node/local tooling
+node_modules/
+package-lock.json
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
