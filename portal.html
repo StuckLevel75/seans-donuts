@@ -260,6 +260,39 @@
           <div id="contactMessagesList" class="response-grid"></div>
         </section>
 
+        <section id="inventorySection" class="page-panel hidden">
+          <div class="section-heading">
+            <div>
+              <h2>Inventory</h2>
+              <p>Van stock, office stock, 24/7 prices, and resources</p>
+            </div>
+            <div class="button-row">
+              <button id="inventoryRefreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+              <button id="saveInventoryBtn" class="btn btn-primary" type="button">Save Stock</button>
+            </div>
+          </div>
+
+          <div id="inventorySummary" class="inventory-summary"></div>
+          <div class="inventory-layout">
+            <div class="card">
+              <h3>Van Stock</h3>
+              <div id="vanInventoryList" class="inventory-list"></div>
+            </div>
+            <div class="card">
+              <h3>Office Stock</h3>
+              <div id="officeInventoryList" class="inventory-list"></div>
+            </div>
+            <div class="card">
+              <h3>24/7 Items</h3>
+              <div id="storeItemsList" class="price-list"></div>
+            </div>
+            <div class="card">
+              <h3>Links</h3>
+              <div id="resourceLinksList" class="price-list"></div>
+            </div>
+          </div>
+        </section>
+
         <section id="adsSection" class="page-panel hidden">
           <div class="section-heading">
             <div>
@@ -268,23 +301,87 @@
             </div>
           </div>
 
-          <div class="card">
-            <h3>Ad Post Generator</h3>
-            <div class="form-grid">
-              <input id="adTitle" placeholder="Ad title">
+          <div class="card ad-studio-card">
+            <div class="ad-studio-header">
+              <div>
+                <h3>Ad Post Generator</h3>
+                <p>Build copy-ready promos for Discord, social posts, and customer outreach.</p>
+              </div>
               <select id="adStatus">
                 <option value="Active">Active</option>
                 <option value="Draft">Draft</option>
                 <option value="Inactive">Inactive</option>
               </select>
-              <textarea id="adText" rows="4" placeholder="Ad text"></textarea>
+            </div>
+
+            <div class="ad-template-row">
+              <button class="template-chip" type="button" data-ad-template="sale">Sale Blast</button>
+              <button class="template-chip" type="button" data-ad-template="event">Event Push</button>
+              <button class="template-chip" type="button" data-ad-template="hiring">Hiring</button>
+              <button class="template-chip" type="button" data-ad-template="raffle">Raffle</button>
+            </div>
+
+            <div class="form-grid ad-form-grid">
+              <label class="field-label">
+                <span>Headline</span>
+                <input id="adTitle" placeholder="Example: Fresh donuts are ready">
+              </label>
+              <label class="field-label">
+                <span>Campaign Type</span>
+                <select id="adCampaignType">
+                  <option value="General Promo">General Promo</option>
+                  <option value="Limited Time Sale">Limited Time Sale</option>
+                  <option value="New Menu Item">New Menu Item</option>
+                  <option value="Event">Event</option>
+                  <option value="Hiring">Hiring</option>
+                  <option value="Raffle">Raffle</option>
+                </select>
+              </label>
+              <label class="field-label">
+                <span>Platform</span>
+                <select id="adPlatform">
+                  <option value="All">All Versions</option>
+                  <option value="Discord">Discord</option>
+                  <option value="Social">Social Media</option>
+                  <option value="Customer">Customer DM</option>
+                </select>
+              </label>
+              <label class="field-label">
+                <span>Tone</span>
+                <select id="adTone">
+                  <option value="Friendly">Friendly</option>
+                  <option value="Hype">Hype</option>
+                  <option value="Professional">Professional</option>
+                  <option value="Playful">Playful</option>
+                </select>
+              </label>
+              <label class="field-label">
+                <span>Audience</span>
+                <input id="adAudience" placeholder="Example: cafe regulars, new customers">
+              </label>
+              <label class="field-label">
+                <span>Featured Item</span>
+                <input id="adFeaturedItem" placeholder="Example: donuts, coffee, raffle tickets">
+              </label>
+              <label class="field-label">
+                <span>Offer</span>
+                <input id="adOffer" placeholder="Example: 15% off today only">
+              </label>
+              <label class="field-label">
+                <span>Call To Action</span>
+                <input id="adCTA" placeholder="Example: Stop by today">
+              </label>
+              <label class="field-label field-wide">
+                <span>Details</span>
+                <textarea id="adText" rows="4" placeholder="What should customers know?"></textarea>
+              </label>
             </div>
             <div class="button-row">
-              <button id="generateAdCopyBtn" class="btn btn-secondary" type="button">Generate Copy</button>
-              <button id="copyAdCopyBtn" class="btn btn-secondary" type="button">Copy Message</button>
+              <button id="generateAdCopyBtn" class="btn btn-primary" type="button">Generate Copy</button>
+              <button id="copyAdCopyBtn" class="btn btn-secondary" type="button">Copy All</button>
               <button id="saveAdBtn" class="btn btn-primary" type="button">Save Ad</button>
             </div>
-            <textarea id="adGeneratedText" class="copy-ready-box" rows="6" readonly placeholder="Generated copy will appear here."></textarea>
+            <textarea id="adGeneratedText" class="copy-ready-box ad-copy-box" rows="12" readonly placeholder="Generated copy will appear here."></textarea>
           </div>
 
           <div id="adsList" class="stack-list"></div>
