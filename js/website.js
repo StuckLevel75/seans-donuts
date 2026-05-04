@@ -129,6 +129,44 @@ function showWebsiteSalePopup(sale) {
   }
 }
 
+function initHeroRotators() {
+  document.querySelectorAll('[data-hero-rotator]').forEach(hero => {
+    const images = String(hero.dataset.heroImages || '')
+      .split(',')
+      .map(path => path.trim())
+      .filter(Boolean);
+
+    if (!images.length) return;
+
+    let index = 0;
+
+    function showImage(nextIndex, attempts = 0) {
+      if (attempts >= images.length) return;
+
+      const imagePath = images[nextIndex % images.length];
+      const imageUrl = new URL(imagePath, window.location.href).href;
+      const testImage = new Image();
+
+      testImage.onload = () => {
+        index = nextIndex % images.length;
+        hero.style.setProperty('--hero-image', `url("${imageUrl}")`);
+      };
+
+      testImage.onerror = () => {
+        if (images.length > 1) showImage((nextIndex + 1) % images.length, attempts + 1);
+      };
+
+      testImage.src = imageUrl;
+    }
+
+    showImage(index);
+
+    if (images.length > 1) {
+      window.setInterval(() => showImage(index + 1), 5500);
+    }
+  });
+}
+
 async function initWebsiteSalePopup() {
   try {
     const boot = await publicApi('getPortalBootstrap', {});
@@ -142,4 +180,5 @@ async function initWebsiteSalePopup() {
 wireSheetForm('#applicationForm', 'submitApplication', 'Application submitted. We will review it soon.');
 wireSheetForm('#contactForm', 'submitContact', 'Message sent. Thank you for reaching out.');
 wireSheetForm('#advertiseForm', 'submitAdvertise', 'Advertising request sent. We will review it soon.');
+initHeroRotators();
 initWebsiteSalePopup();
