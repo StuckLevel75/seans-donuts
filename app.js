@@ -39,8 +39,15 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function roundedMoneyValue(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? Math.round(number) : 0;
+}
+
 function money(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  const rounded = roundedMoneyValue(value);
+  const sign = rounded < 0 ? '-' : '';
+  return `${sign}$${Math.abs(rounded).toLocaleString('en-US')}`;
 }
 
 function escapeHtml(value) {
@@ -491,8 +498,13 @@ function removeFromCart(index) {
 function getCartLines() {
   return Object.entries(state.cart).map(([name, qty]) => {
     const product = state.products.find(item => productName(item) === name) || {};
-    const price = productPrice(product);
-    return { name, qty, price, lineTotal: qty * price };
+    const rawPrice = productPrice(product);
+    return {
+      name,
+      qty,
+      price: roundedMoneyValue(rawPrice),
+      lineTotal: roundedMoneyValue(qty * rawPrice)
+    };
   });
 }
 
@@ -566,16 +578,16 @@ function updateSaleBanner() {
 
 function calculateCheckoutTotals() {
   const lines = getCartLines();
-  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const subtotal = roundedMoneyValue(lines.reduce((sum, line) => sum + line.lineTotal, 0));
   const mileageMiles = Number(getValue('mileageInput') || 0);
   const mileageRate = getMileageRate();
-  const mileage = Math.max(0, mileageMiles * mileageRate);
-  const amountPaid = Number(getValue('amountPaidInput') || 0);
+  const mileage = roundedMoneyValue(Math.max(0, mileageMiles * mileageRate));
+  const amountPaid = roundedMoneyValue(getValue('amountPaidInput') || 0);
   const sale = getActiveSale();
-  const saleDiscount = sale.active ? Math.min(subtotal, subtotal * (sale.percent / 100)) : 0;
-  const dueBeforeTip = Math.max(0, subtotal - saleDiscount + mileage);
-  const tip = Math.max(0, amountPaid - dueBeforeTip);
-  const total = dueBeforeTip + tip;
+  const saleDiscount = sale.active ? roundedMoneyValue(Math.min(subtotal, subtotal * (sale.percent / 100))) : 0;
+  const dueBeforeTip = roundedMoneyValue(Math.max(0, subtotal - saleDiscount + mileage));
+  const tip = roundedMoneyValue(Math.max(0, amountPaid - dueBeforeTip));
+  const total = roundedMoneyValue(dueBeforeTip + tip);
 
   return {
     lines,
@@ -851,7 +863,7 @@ function renderOrders(rows) {
   `).join('');
 }
 
-async function lookupRewards() {
+async function lookupRewardsOld_() {
   const customerName = getValue('rewardCustomerName').trim();
   if (!customerName) {
     alert('Enter a customer name.');
@@ -884,6 +896,144 @@ async function lookupRewards() {
     }
   } catch (err) {
     if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Lookup failed.')}</p></div>`;
+  }
+}
+
+async function lookupRewards() {
+  const customerName = getValue('rewardCustomerName').trim();
+  if (!customerName) {
+    alert('Enter a customer name.');
+    return;
+  }
+
+  const wrap = $('rewardsResult');
+  if (wrap) wrap.innerHTML = '<div class="list-item"><p>Looking up rewards...</p></div>';
+
+  try {
+    const res = await api('lookupRewards', authPayload({ customerName }));
+    if (!res.ok) {
+      if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Lookup failed.')}</p></div>`;
+      return;
+    }
+
+    const matches = Array.isArray(res.matches) ? res.matches : [];
+    if (matches.length > 1) {
+      renderRewardsMatches(customerName, matches);
+      return;
+    }
+
+    const reward = res.reward || matches[0] || {};
+    renderRewardsResult(reward.customerName || customerName, reward);
+  } catch (err) {
+    if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Lookup failed.')}</p></div>`;
+  }
+}
+
+function renderRewardsMatches(query, matches) {
+  const wrap = $('rewardsResult');
+  if (!wrap) return;
+
+  wrap.innerHTML = `
+    <div class="reward-search-results">
+      <div class="reward-search-header">
+        <div>
+          <span class="reward-eyebrow">Rewards search</span>
+          <h3>${matches.length} customers found</h3>
+          <p>Showing rewards customers matching "${escapeHtml(query)}".</p>
+        </div>
+      </div>
+      <div class="reward-match-grid">
+        ${matches.map((reward, index) => `
+          <button class="reward-match-card" type="button" data-reward-match="${index}">
+            <span>${escapeHtml(reward.customerName || 'Customer')}</span>
+            <strong>${Number(reward.rewardsAvailable || 0)} available</strong>
+            <small>${Number(reward.visits || 0)} visits - ${Number(reward.visitProgress || 0)}/${Number(reward.visitGoal || 10)} progress</small>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  wrap.querySelectorAll('[data-reward-match]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const reward = matches[Number(btn.dataset.rewardMatch)] || {};
+      renderRewardsResult(reward.customerName || query, reward);
+    });
+  });
+}
+
+function renderRewardsResult(customerName, reward = {}) {
+  const wrap = $('rewardsResult');
+  if (!wrap) return;
+
+  const visitGoal = Number(reward.visitGoal || 10);
+  const visits = Number(reward.visits || 0);
+  const progress = Number(reward.visitProgress || 0);
+  const available = Number(reward.rewardsAvailable || 0);
+  const redeemed = Number(reward.totalRewardsRedeemed || 0);
+  const visitsUntilNext = Number(reward.visitsUntilNext ?? Math.max(0, visitGoal - progress));
+  const progressPercent = visitGoal > 0 ? Math.min(100, Math.max(0, (progress / visitGoal) * 100)) : 0;
+  const hasReward = available > 0;
+
+  wrap.innerHTML = `
+    <div class="reward-card ${hasReward ? 'reward-ready' : ''}">
+      <div class="reward-card-header">
+        <div>
+          <span class="reward-eyebrow">Rewards customer</span>
+          <h3>${escapeHtml(customerName)}</h3>
+          <p>${hasReward ? 'Reward available now.' : `${visitsUntilNext} visit${visitsUntilNext === 1 ? '' : 's'} until the next reward.`}</p>
+        </div>
+        <div class="reward-available">
+          <span>Available</span>
+          <strong>${available}</strong>
+        </div>
+      </div>
+
+      <div class="reward-progress-wrap">
+        <div class="reward-progress-meta">
+          <span>${progress}/${visitGoal} visits</span>
+          <span>10 visits = 1 reward</span>
+        </div>
+        <div class="reward-progress-track">
+          <div class="reward-progress-fill" style="width:${progressPercent}%"></div>
+        </div>
+      </div>
+
+      <div class="reward-stat-grid">
+        <div><span>Total Visits</span><strong>${visits}</strong></div>
+        <div><span>Redeemed</span><strong>${redeemed}</strong></div>
+        <div><span>Last Visit</span><strong>${escapeHtml(formatDate(reward.lastVisit))}</strong></div>
+        <div><span>Last Order</span><strong>${escapeHtml(reward.lastOrderNumber || '-')}</strong></div>
+      </div>
+
+      <div class="reward-actions">
+        <button class="btn btn-primary" type="button" data-redeem-reward="${escapeHtml(customerName)}" ${hasReward ? '' : 'disabled'}>Redeem Reward</button>
+        <p>Orders only count when a customer name is entered at checkout.</p>
+      </div>
+    </div>
+  `;
+
+  wrap.querySelector('[data-redeem-reward]')?.addEventListener('click', () => redeemReward(customerName));
+}
+
+async function redeemReward(customerName) {
+  if (!customerName) return;
+  if (!window.confirm(`Redeem one reward for ${customerName}?`)) return;
+
+  showLoading('Redeeming', 'Updating rewards...');
+  try {
+    const res = await api('redeemReward', authPayload({ customerName }));
+    if (!res.ok) {
+      alert(res.message || 'Could not redeem reward.');
+      return;
+    }
+
+    renderRewardsResult(customerName, res.reward || {});
+    alert(res.message || 'Reward redeemed.');
+  } catch (err) {
+    alert(err.message || 'Could not redeem reward.');
+  } finally {
+    hideLoading();
   }
 }
 
