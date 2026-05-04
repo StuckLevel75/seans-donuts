@@ -716,6 +716,69 @@ textarea:focus {
   font-weight: 700;
 }
 
+.bank-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.bank-summary-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fffaf6;
+}
+
+.bank-summary-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.bank-summary-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.bank-balance-card {
+  background: #fff1d6;
+}
+
+.bank-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  gap: 14px;
+}
+
+.bank-layout .card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.bank-transaction-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.bank-transaction-main strong {
+  white-space: nowrap;
+}
+
+.money-positive {
+  color: var(--success);
+}
+
+.money-negative {
+  color: var(--danger);
+}
+
 .count-badge,
 .status-pill {
   display: inline-flex;
@@ -1275,6 +1338,8 @@ textarea:focus {
 @media (max-width: 1100px) {
   .product-grid,
   .stats-grid,
+  .bank-summary,
+  .bank-layout,
   .theme-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1342,6 +1407,8 @@ textarea:focus {
   .application-detail-grid,
   .inventory-summary,
   .inventory-layout,
+  .bank-summary,
+  .bank-layout,
   .inventory-row {
     grid-template-columns: 1fr;
   }
