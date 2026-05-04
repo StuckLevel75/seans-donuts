@@ -1325,30 +1325,26 @@ function renderInventorySection(id, rows, canManage) {
     const fillCost = needed * Number(row.price247 || 0);
 
     return `
-      <div class="inventory-row" data-inventory-row="${escapeHtml(row.rowNumber)}" data-section="${escapeHtml(row.section)}" data-item="${escapeHtml(row.item)}">
+      <div class="inventory-row" data-inventory-row="${escapeHtml(row.rowNumber)}" data-section="${escapeHtml(row.section)}" data-item="${escapeHtml(row.item)}" data-target-qty="${escapeHtml(row.targetQty)}" data-price247="${escapeHtml(row.price247)}" data-our-price="${escapeHtml(row.ourPrice)}">
         <div>
           <div class="inventory-item-name">${escapeHtml(row.item || 'Item')}</div>
           <div class="item-meta"><span>Need <strong class="inventory-need">${needed}</strong></span><span>${money(fillCost)}</span></div>
         </div>
         <label class="mini-field">
           <span>Target</span>
-          <input data-inventory-input data-field="targetQty" type="number" min="0" step="1" value="${escapeHtml(row.targetQty)}" ${canManage ? '' : 'disabled'}>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.targetQty)}" disabled>
         </label>
         <label class="mini-field">
           <span>Current</span>
           <input data-inventory-input data-field="currentQty" type="number" min="0" step="1" value="${escapeHtml(row.currentQty)}" ${canManage ? '' : 'disabled'}>
         </label>
         <label class="mini-field">
-          <span>Weight</span>
-          <input data-inventory-input data-field="unitWeight" type="number" min="0" step="0.01" value="${escapeHtml(row.unitWeight)}" ${canManage ? '' : 'disabled'}>
-        </label>
-        <label class="mini-field">
           <span>24/7 $</span>
-          <input data-inventory-input data-field="price247" type="number" min="0" step="0.01" value="${escapeHtml(row.price247)}" ${canManage ? '' : 'disabled'}>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.price247)}" disabled>
         </label>
         <label class="mini-field">
           <span>Our $</span>
-          <input data-inventory-input data-field="ourPrice" type="number" min="0" step="0.01" value="${escapeHtml(row.ourPrice)}" ${canManage ? '' : 'disabled'}>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.ourPrice)}" disabled>
         </label>
       </div>
     `;
@@ -1361,6 +1357,9 @@ function collectInventoryRows() {
       rowNumber: rowEl.dataset.inventoryRow,
       section: rowEl.dataset.section || '',
       item: rowEl.dataset.item || '',
+      targetQty: Number(rowEl.dataset.targetQty || 0),
+      price247: Number(rowEl.dataset.price247 || 0),
+      ourPrice: Number(rowEl.dataset.ourPrice || 0),
       active: 'Yes'
     };
 
