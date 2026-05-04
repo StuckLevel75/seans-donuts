@@ -12,6 +12,7 @@ const state = {
   applications: [],
   contactMessages: [],
   inventory: null,
+  bank: null,
   activeTab: 'dashboard',
   loaded: {},
   saleTimerId: null
@@ -26,6 +27,7 @@ const tabs = [
   { key: 'applications', label: 'Applications', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
   { key: 'contact', label: 'Contact', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
   { key: 'inventory', label: 'Inventory', permission: 'canViewInventory' },
+  { key: 'bank', label: 'Bank', anyPermission: ['isOwner', 'isAdmin'] },
   { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner'] },
   { key: 'payroll', label: 'Payroll', permission: 'canViewPayroll' },
   { key: 'employees', label: 'Employees', anyPermission: ['canManageEmployees', 'isOwner'] },
@@ -306,6 +308,7 @@ function openTab(tabKey) {
   if (tabKey === 'applications') loadApplications();
   if (tabKey === 'contact') loadContactMessages();
   if (tabKey === 'inventory') loadInventory();
+  if (tabKey === 'bank') loadBank();
   if (tabKey === 'ads') loadAds();
   if (tabKey === 'payroll') loadPayroll();
   if (tabKey === 'employees') loadAdminData();
@@ -794,6 +797,7 @@ function logoutNow() {
   state.adminData = null;
   state.products = [];
   state.cart = {};
+  state.bank = null;
   state.loaded = {};
   state.activeTab = 'dashboard';
   if (state.saleTimerId) {
@@ -1027,6 +1031,104 @@ function renderPayroll(rows) {
       </div>
     </div>
   `).join('');
+}
+
+async function loadBank() {
+  const list = $('bankTransactionsList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading bank activity...</p></div>';
+
+  try {
+    const res = await api('loadBank', authPayload());
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load bank balance.')}</p></div>`;
+      return;
+    }
+
+    state.bank = res;
+    renderBank();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load bank balance.')}</p></div>`;
+  }
+}
+
+function renderBank() {
+  const data = state.bank || {};
+  const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+
+  setText('bankBalanceText', money(data.balance || 0));
+  setText('bankIncomeText', money(data.totalIn || 0));
+  setText('bankExpenseText', money(data.totalOut || 0));
+  setText('bankTransactionCountText', Number(data.transactionCount || transactions.length || 0));
+
+  const list = $('bankTransactionsList');
+  if (!list) return;
+
+  if (!transactions.length) {
+    list.innerHTML = '<div class="list-item"><p>No bank activity yet.</p></div>';
+    return;
+  }
+
+  list.innerHTML = transactions.map(row => {
+    const amount = Number(row.Amount || row.amount || 0);
+    const isOut = amount < 0;
+    const signed = `${isOut ? '-' : '+'}${money(Math.abs(amount))}`;
+    return `
+      <div class="list-item bank-transaction-item">
+        <div class="bank-transaction-main">
+          <div>
+            <h4>${escapeHtml(row.Type || 'Transaction')}</h4>
+            <p>${escapeHtml(row.Category || '')}${row.Description ? ` - ${escapeHtml(row.Description)}` : ''}</p>
+          </div>
+          <strong class="${isOut ? 'money-negative' : 'money-positive'}">${signed}</strong>
+        </div>
+        <div class="item-meta">
+          <span>${escapeHtml(formatDate(row.Timestamp))}</span>
+          <span>Balance: ${money(row['Balance After'] || 0)}</span>
+          ${row['Order Number'] ? `<span>Order: ${escapeHtml(row['Order Number'])}</span>` : ''}
+          ${row['Payment Method'] ? `<span>${escapeHtml(row['Payment Method'])}</span>` : ''}
+          ${row['Actor Name'] ? `<span>${escapeHtml(row['Actor Name'])}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveBankTransactionNow() {
+  const type = getValue('bankTransactionType', 'Expense');
+  const amount = Number(getValue('bankTransactionAmount') || 0);
+  const category = getValue('bankTransactionCategory').trim();
+  const description = getValue('bankTransactionDescription').trim();
+
+  if (!amount || amount <= 0) {
+    alert('Enter an amount bigger than 0.');
+    return;
+  }
+
+  showLoading('Saving', 'Recording bank activity...');
+  try {
+    const res = await api('saveBankTransaction', authPayload({
+      type,
+      amount,
+      category,
+      description
+    }));
+
+    if (!res.ok) {
+      alert(res.message || 'Could not save bank activity.');
+      return;
+    }
+
+    setValue('bankTransactionAmount', '');
+    setValue('bankTransactionCategory', '');
+    setValue('bankTransactionDescription', '');
+    state.bank = res;
+    renderBank();
+    alert(res.message || 'Bank activity saved.');
+  } catch (err) {
+    alert(err.message || 'Could not save bank activity.');
+  } finally {
+    hideLoading();
+  }
 }
 
 async function loadApplications() {
@@ -2572,6 +2674,9 @@ function init() {
 
   $('inventoryRefreshBtn')?.addEventListener('click', loadInventory);
   $('saveInventoryBtn')?.addEventListener('click', saveInventoryNow);
+
+  $('bankRefreshBtn')?.addEventListener('click', loadBank);
+  $('saveBankTransactionBtn')?.addEventListener('click', saveBankTransactionNow);
 
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
   $('generateAdCopyBtn')?.addEventListener('click', generateAdCopy);
