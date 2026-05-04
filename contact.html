@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact - Sean's Donuts</title>
+  <link rel="stylesheet" href="website.css">
+</head>
+<body>
+  <nav class="site-nav">
+    <a class="brand" href="index.html">Sean's Donuts</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="menu.html">Menu</a>
+      <a href="careers.html">Careers</a>
+      <a href="crew.html">Crew</a>
+      <a href="contact.html">Contact</a>
+      <a href="advertise.html">Advertise</a>
+      <a class="nav-portal" href="portal-link.html">Employee Portal</a>
+    </div>
+  </nav>
+
+  <main class="form-page">
+    <p class="eyebrow">Talk to us</p>
+    <h1>Contact Sean's Donuts</h1>
+    <p class="form-note">Send questions, customer notes, partnership ideas, or service requests.</p>
+
+    <form id="contactForm" class="sd-form">
+      <label>Name *</label>
+      <input type="text" name="name" required>
+
+      <label>Email *</label>
+      <input type="email" name="email" required>
+
+      <label>Discord</label>
+      <input type="text" name="discord">
+
+      <label>Phone</label>
+      <input type="text" name="phone">
+
+      <label>Subject</label>
+      <input type="text" name="subject">
+
+      <label>Message *</label>
+      <textarea name="message" required></textarea>
+
+      <button type="submit">Send Message</button>
+      <div class="form-status" aria-live="polite"></div>
+    </form>
+  </main>
+
+  <script src="website.js"></script>
+</body>
+</html>

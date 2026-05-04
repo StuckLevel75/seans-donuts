@@ -9,8 +9,13 @@ const state = {
   products: [],
   cart: {},
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
+  applications: [],
+  contactMessages: [],
+  inventory: null,
+  bank: null,
   activeTab: 'dashboard',
-  loaded: {}
+  loaded: {},
+  saleTimerId: null
 };
 
 const tabs = [
@@ -19,6 +24,10 @@ const tabs = [
   { key: 'orders', label: 'Orders', permission: 'canViewOrders' },
   { key: 'rewards', label: 'Rewards', permission: 'canViewRewards' },
   { key: 'raffle', label: 'Raffle', permission: 'canViewRaffle' },
+  { key: 'applications', label: 'Applications', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
+  { key: 'contact', label: 'Contact', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
+  { key: 'inventory', label: 'Inventory', permission: 'canViewInventory' },
+  { key: 'bank', label: 'Bank', anyPermission: ['isOwner', 'isAdmin'] },
   { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner'] },
   { key: 'payroll', label: 'Payroll', permission: 'canViewPayroll' },
   { key: 'employees', label: 'Employees', anyPermission: ['canManageEmployees', 'isOwner'] },
@@ -30,8 +39,15 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function roundedMoneyValue(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? Math.round(number) : 0;
+}
+
 function money(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  const rounded = roundedMoneyValue(value);
+  const sign = rounded < 0 ? '-' : '';
+  return `${sign}$${Math.abs(rounded).toLocaleString('en-US')}`;
 }
 
 function escapeHtml(value) {
@@ -56,6 +72,14 @@ function setValue(id, value) {
 function getValue(id, fallback = '') {
   const el = $(id);
   return el ? el.value : fallback;
+}
+
+function debounce(fn, delay = 250) {
+  let timer = null;
+  return (...args) => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => fn(...args), delay);
+  };
 }
 
 function showEl(id) {
@@ -195,6 +219,8 @@ function hasAnyPermission(keys) {
 }
 
 function canAccessTab(tab) {
+  if (tab.key === 'raffle' && !isRaffleActive()) return false;
+
   if (!tab.permission && !tab.anyPermission) return true;
   const perms = getPerms();
   if (tab.permission && perms[tab.permission]) return true;
@@ -204,6 +230,25 @@ function canAccessTab(tab) {
 
 function getVisibleTabs() {
   return tabs.filter(canAccessTab);
+}
+
+function isRaffleActive() {
+  const settings = state.bootstrap?.settings || {};
+  if (!state.bootstrap) return true;
+
+  const enabled = String(settings.raffleEnabled || 'Yes').trim().toLowerCase() === 'yes';
+  if (!enabled) return false;
+
+  const now = Date.now();
+  const startText = String(settings.raffleStart || '').trim();
+  const endText = String(settings.raffleEnd || '').trim();
+  const start = startText ? new Date(startText).getTime() : NaN;
+  const end = endText ? new Date(endText).getTime() : NaN;
+
+  if (!Number.isNaN(start) && now < start) return false;
+  if (!Number.isNaN(end) && now > end) return false;
+
+  return true;
 }
 
 function authPayload(extra = {}) {
@@ -267,6 +312,10 @@ function openTab(tabKey) {
 
   if (tabKey === 'orders') loadOrders();
   if (tabKey === 'raffle') loadRaffleOverview();
+  if (tabKey === 'applications') loadApplications();
+  if (tabKey === 'contact') loadContactMessages();
+  if (tabKey === 'inventory') loadInventory();
+  if (tabKey === 'bank') loadBank();
   if (tabKey === 'ads') loadAds();
   if (tabKey === 'payroll') loadPayroll();
   if (tabKey === 'employees') loadAdminData();
@@ -350,6 +399,7 @@ function renderBootstrap() {
   setText('statSales', money(stats.totalSales || 0));
   setText('statEmployees', Number(stats.activeEmployees || 0));
   setText('statRaffle', Number(stats.raffleEntries || 0));
+  updateSaleBanner();
 
   const list = $('announcementsList');
   if (list) {
@@ -448,8 +498,13 @@ function removeFromCart(index) {
 function getCartLines() {
   return Object.entries(state.cart).map(([name, qty]) => {
     const product = state.products.find(item => productName(item) === name) || {};
-    const price = productPrice(product);
-    return { name, qty, price, lineTotal: qty * price };
+    const rawPrice = productPrice(product);
+    return {
+      name,
+      qty,
+      price: roundedMoneyValue(rawPrice),
+      lineTotal: roundedMoneyValue(qty * rawPrice)
+    };
   });
 }
 
@@ -457,37 +512,88 @@ function getActiveSale() {
   const settings = state.bootstrap?.settings || {};
   const enabled = String(settings.saleEnabled || 'No').trim().toLowerCase() === 'yes';
   const percent = Math.max(0, Math.min(100, Number(settings.salePercent || 0)));
-
-  if (!enabled || percent <= 0) {
-    return { active: false, percent: 0 };
-  }
-
-  const now = Date.now();
   const startText = String(settings.saleStart || '').trim();
   const endText = String(settings.saleEnd || '').trim();
   const start = startText ? new Date(startText).getTime() : NaN;
   const end = endText ? new Date(endText).getTime() : NaN;
 
-  if (!Number.isNaN(start) && now < start) return { active: false, percent };
-  if (!Number.isNaN(end) && now > end) return { active: false, percent };
+  if (!enabled || percent <= 0) {
+    return { active: false, percent: 0, start, end };
+  }
 
-  return { active: true, percent };
+  const now = Date.now();
+
+  if (!Number.isNaN(start) && now < start) return { active: false, percent, start, end };
+  if (!Number.isNaN(end) && now > end) return { active: false, percent, start, end };
+
+  return { active: true, percent, start, end };
+}
+
+function getMileageRate() {
+  const rate = Number(state.bootstrap?.settings?.mileageRate || 50);
+  return rate > 0 ? rate : 50;
+}
+
+function formatCountdown(targetTime) {
+  if (!targetTime || Number.isNaN(targetTime)) return 'Active now';
+
+  const remaining = Math.max(0, targetTime - Date.now());
+  const totalSeconds = Math.floor(remaining / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
+function updateSaleBanner() {
+  const sale = getActiveSale();
+  const banner = $('saleBanner');
+  if (!banner) return;
+
+  if (!sale.active) {
+    banner.classList.add('hidden');
+    if (state.saleTimerId) {
+      window.clearInterval(state.saleTimerId);
+      state.saleTimerId = null;
+    }
+    return;
+  }
+
+  setText('saleBannerTitle', `${sale.percent}% off sale is live`);
+  setText('saleBannerText', 'Sale discount is applied automatically at checkout.');
+  setText('saleCountdown', sale.end && !Number.isNaN(sale.end)
+    ? `Ends in ${formatCountdown(sale.end)}`
+    : 'Active now'
+  );
+  banner.classList.remove('hidden');
+
+  if (!state.saleTimerId) {
+    state.saleTimerId = window.setInterval(updateSaleBanner, 1000);
+  }
 }
 
 function calculateCheckoutTotals() {
   const lines = getCartLines();
-  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const mileage = Number(getValue('mileageInput') || 0);
-  const amountPaid = Number(getValue('amountPaidInput') || 0);
+  const subtotal = roundedMoneyValue(lines.reduce((sum, line) => sum + line.lineTotal, 0));
+  const mileageMiles = Number(getValue('mileageInput') || 0);
+  const mileageRate = getMileageRate();
+  const mileage = roundedMoneyValue(Math.max(0, mileageMiles * mileageRate));
+  const amountPaid = roundedMoneyValue(getValue('amountPaidInput') || 0);
   const sale = getActiveSale();
-  const saleDiscount = sale.active ? Math.min(subtotal, subtotal * (sale.percent / 100)) : 0;
-  const dueBeforeTip = Math.max(0, subtotal - saleDiscount + mileage);
-  const tip = Math.max(0, amountPaid - dueBeforeTip);
-  const total = dueBeforeTip + tip;
+  const saleDiscount = sale.active ? roundedMoneyValue(Math.min(subtotal, subtotal * (sale.percent / 100))) : 0;
+  const dueBeforeTip = roundedMoneyValue(Math.max(0, subtotal - saleDiscount + mileage));
+  const tip = roundedMoneyValue(Math.max(0, amountPaid - dueBeforeTip));
+  const total = roundedMoneyValue(dueBeforeTip + tip);
 
   return {
     lines,
     subtotal,
+    mileageMiles,
+    mileageRate,
     mileage,
     amountPaid,
     sale,
@@ -516,6 +622,10 @@ function renderCart() {
   }
 
   setText('subtotalText', money(totals.subtotal));
+  setText('mileageLabelText', totals.mileageMiles > 0
+    ? `Mileage (${totals.mileageMiles} mi @ ${money(totals.mileageRate)}/mi)`
+    : `Mileage (${money(totals.mileageRate)}/mi)`
+  );
   setText('mileageText', money(totals.mileage));
   setText('saleLabelText', totals.sale.active ? `Sale (${totals.sale.percent}% off)` : 'Sale');
   setText('saleText', money(totals.saleDiscount));
@@ -573,6 +683,8 @@ async function submitOrder() {
     return;
   }
 
+  const totals = calculateCheckoutTotals();
+
   showLoading('Submitting', 'Saving order...');
   try {
     const res = await api('submitOrder', authPayload({
@@ -580,7 +692,8 @@ async function submitOrder() {
       customerName,
       customerDiscord,
       phoneNumber,
-      mileage: Number(getValue('mileageInput') || 0),
+      miles: totals.mileageMiles,
+      mileage: totals.mileage,
       amountPaid: Number(getValue('amountPaidInput') || 0),
       paymentMethod,
       notes: getValue('notes')
@@ -696,10 +809,16 @@ function logoutNow() {
   state.adminData = null;
   state.products = [];
   state.cart = {};
+  state.bank = null;
   state.loaded = {};
   state.activeTab = 'dashboard';
+  if (state.saleTimerId) {
+    window.clearInterval(state.saleTimerId);
+    state.saleTimerId = null;
+  }
 
   setValue('loginPin', '');
+  hideEl('saleBanner');
   showEl('loginView');
   hideEl('portalView');
 }
@@ -744,7 +863,7 @@ function renderOrders(rows) {
   `).join('');
 }
 
-async function lookupRewards() {
+async function lookupRewardsOld_() {
   const customerName = getValue('rewardCustomerName').trim();
   if (!customerName) {
     alert('Enter a customer name.');
@@ -777,6 +896,144 @@ async function lookupRewards() {
     }
   } catch (err) {
     if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Lookup failed.')}</p></div>`;
+  }
+}
+
+async function lookupRewards() {
+  const customerName = getValue('rewardCustomerName').trim();
+  if (!customerName) {
+    alert('Enter a customer name.');
+    return;
+  }
+
+  const wrap = $('rewardsResult');
+  if (wrap) wrap.innerHTML = '<div class="list-item"><p>Looking up rewards...</p></div>';
+
+  try {
+    const res = await api('lookupRewards', authPayload({ customerName }));
+    if (!res.ok) {
+      if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Lookup failed.')}</p></div>`;
+      return;
+    }
+
+    const matches = Array.isArray(res.matches) ? res.matches : [];
+    if (matches.length > 1) {
+      renderRewardsMatches(customerName, matches);
+      return;
+    }
+
+    const reward = res.reward || matches[0] || {};
+    renderRewardsResult(reward.customerName || customerName, reward);
+  } catch (err) {
+    if (wrap) wrap.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Lookup failed.')}</p></div>`;
+  }
+}
+
+function renderRewardsMatches(query, matches) {
+  const wrap = $('rewardsResult');
+  if (!wrap) return;
+
+  wrap.innerHTML = `
+    <div class="reward-search-results">
+      <div class="reward-search-header">
+        <div>
+          <span class="reward-eyebrow">Rewards search</span>
+          <h3>${matches.length} customers found</h3>
+          <p>Showing rewards customers matching "${escapeHtml(query)}".</p>
+        </div>
+      </div>
+      <div class="reward-match-grid">
+        ${matches.map((reward, index) => `
+          <button class="reward-match-card" type="button" data-reward-match="${index}">
+            <span>${escapeHtml(reward.customerName || 'Customer')}</span>
+            <strong>${Number(reward.rewardsAvailable || 0)} available</strong>
+            <small>${Number(reward.visits || 0)} visits - ${Number(reward.visitProgress || 0)}/${Number(reward.visitGoal || 10)} progress</small>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  wrap.querySelectorAll('[data-reward-match]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const reward = matches[Number(btn.dataset.rewardMatch)] || {};
+      renderRewardsResult(reward.customerName || query, reward);
+    });
+  });
+}
+
+function renderRewardsResult(customerName, reward = {}) {
+  const wrap = $('rewardsResult');
+  if (!wrap) return;
+
+  const visitGoal = Number(reward.visitGoal || 10);
+  const visits = Number(reward.visits || 0);
+  const progress = Number(reward.visitProgress || 0);
+  const available = Number(reward.rewardsAvailable || 0);
+  const redeemed = Number(reward.totalRewardsRedeemed || 0);
+  const visitsUntilNext = Number(reward.visitsUntilNext ?? Math.max(0, visitGoal - progress));
+  const progressPercent = visitGoal > 0 ? Math.min(100, Math.max(0, (progress / visitGoal) * 100)) : 0;
+  const hasReward = available > 0;
+
+  wrap.innerHTML = `
+    <div class="reward-card ${hasReward ? 'reward-ready' : ''}">
+      <div class="reward-card-header">
+        <div>
+          <span class="reward-eyebrow">Rewards customer</span>
+          <h3>${escapeHtml(customerName)}</h3>
+          <p>${hasReward ? 'Reward available now.' : `${visitsUntilNext} visit${visitsUntilNext === 1 ? '' : 's'} until the next reward.`}</p>
+        </div>
+        <div class="reward-available">
+          <span>Available</span>
+          <strong>${available}</strong>
+        </div>
+      </div>
+
+      <div class="reward-progress-wrap">
+        <div class="reward-progress-meta">
+          <span>${progress}/${visitGoal} visits</span>
+          <span>10 visits = 1 reward</span>
+        </div>
+        <div class="reward-progress-track">
+          <div class="reward-progress-fill" style="width:${progressPercent}%"></div>
+        </div>
+      </div>
+
+      <div class="reward-stat-grid">
+        <div><span>Total Visits</span><strong>${visits}</strong></div>
+        <div><span>Redeemed</span><strong>${redeemed}</strong></div>
+        <div><span>Last Visit</span><strong>${escapeHtml(formatDate(reward.lastVisit))}</strong></div>
+        <div><span>Last Order</span><strong>${escapeHtml(reward.lastOrderNumber || '-')}</strong></div>
+      </div>
+
+      <div class="reward-actions">
+        <button class="btn btn-primary" type="button" data-redeem-reward="${escapeHtml(customerName)}" ${hasReward ? '' : 'disabled'}>Redeem Reward</button>
+        <p>Orders only count when a customer name is entered at checkout.</p>
+      </div>
+    </div>
+  `;
+
+  wrap.querySelector('[data-redeem-reward]')?.addEventListener('click', () => redeemReward(customerName));
+}
+
+async function redeemReward(customerName) {
+  if (!customerName) return;
+  if (!window.confirm(`Redeem one reward for ${customerName}?`)) return;
+
+  showLoading('Redeeming', 'Updating rewards...');
+  try {
+    const res = await api('redeemReward', authPayload({ customerName }));
+    if (!res.ok) {
+      alert(res.message || 'Could not redeem reward.');
+      return;
+    }
+
+    renderRewardsResult(customerName, res.reward || {});
+    alert(res.message || 'Reward redeemed.');
+  } catch (err) {
+    alert(err.message || 'Could not redeem reward.');
+  } finally {
+    hideLoading();
   }
 }
 
@@ -926,6 +1183,560 @@ function renderPayroll(rows) {
   `).join('');
 }
 
+async function loadBank() {
+  const list = $('bankTransactionsList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading bank activity...</p></div>';
+
+  try {
+    const res = await api('loadBank', authPayload());
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load bank balance.')}</p></div>`;
+      return;
+    }
+
+    state.bank = res;
+    renderBank();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load bank balance.')}</p></div>`;
+  }
+}
+
+function renderBank() {
+  const data = state.bank || {};
+  const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+
+  setText('bankBalanceText', money(data.balance || 0));
+  setText('bankIncomeText', money(data.totalIn || 0));
+  setText('bankExpenseText', money(data.totalOut || 0));
+  setText('bankTransactionCountText', Number(data.transactionCount || transactions.length || 0));
+
+  const list = $('bankTransactionsList');
+  if (!list) return;
+
+  if (!transactions.length) {
+    list.innerHTML = '<div class="list-item"><p>No bank activity yet.</p></div>';
+    return;
+  }
+
+  list.innerHTML = transactions.map(row => {
+    const amount = Number(row.Amount || row.amount || 0);
+    const isOut = amount < 0;
+    const signed = `${isOut ? '-' : '+'}${money(Math.abs(amount))}`;
+    return `
+      <div class="list-item bank-transaction-item">
+        <div class="bank-transaction-main">
+          <div>
+            <h4>${escapeHtml(row.Type || 'Transaction')}</h4>
+            <p>${escapeHtml(row.Category || '')}${row.Description ? ` - ${escapeHtml(row.Description)}` : ''}</p>
+          </div>
+          <strong class="${isOut ? 'money-negative' : 'money-positive'}">${signed}</strong>
+        </div>
+        <div class="item-meta">
+          <span>${escapeHtml(formatDate(row.Timestamp))}</span>
+          <span>Balance: ${money(row['Balance After'] || 0)}</span>
+          ${row['Order Number'] ? `<span>Order: ${escapeHtml(row['Order Number'])}</span>` : ''}
+          ${row['Payment Method'] ? `<span>${escapeHtml(row['Payment Method'])}</span>` : ''}
+          ${row['Actor Name'] ? `<span>${escapeHtml(row['Actor Name'])}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveBankTransactionNow() {
+  const type = getValue('bankTransactionType', 'Expense');
+  const amount = Number(getValue('bankTransactionAmount') || 0);
+  const category = getValue('bankTransactionCategory').trim();
+  const description = getValue('bankTransactionDescription').trim();
+
+  if (!amount || amount <= 0) {
+    alert('Enter an amount bigger than 0.');
+    return;
+  }
+
+  showLoading('Saving', 'Recording bank activity...');
+  try {
+    const res = await api('saveBankTransaction', authPayload({
+      type,
+      amount,
+      category,
+      description
+    }));
+
+    if (!res.ok) {
+      alert(res.message || 'Could not save bank activity.');
+      return;
+    }
+
+    setValue('bankTransactionAmount', '');
+    setValue('bankTransactionCategory', '');
+    setValue('bankTransactionDescription', '');
+    state.bank = res;
+    renderBank();
+    alert(res.message || 'Bank activity saved.');
+  } catch (err) {
+    alert(err.message || 'Could not save bank activity.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function loadApplications() {
+  const list = $('applicationsList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading applications...</p></div>';
+
+  try {
+    const res = await api('loadApplications', authPayload({
+      status: getValue('applicationStatusFilter', 'All'),
+      query: getValue('applicationSearchInput')
+    }));
+
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load applications.')}</p></div>`;
+      return;
+    }
+
+    state.applications = res.applications || [];
+    setText('applicationsPendingBadge', `${Number(res.pendingCount || 0)} pending`);
+    renderApplications();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load applications.')}</p></div>`;
+  }
+}
+
+function renderApplications() {
+  const list = $('applicationsList');
+  if (!list) return;
+
+  const applications = state.applications || [];
+  if (!applications.length) {
+    list.innerHTML = '<div class="list-item"><p>No applications found.</p></div>';
+    return;
+  }
+
+  list.innerHTML = applications.map(app => {
+    const rowNumber = app._rowNumber || '';
+    const status = String(app.Status || 'Pending');
+    return `
+      <div class="response-card">
+        <div class="response-card-header">
+          <div>
+            <h4>${escapeHtml(app.Name || 'Applicant')}</h4>
+            <p>${escapeHtml(app.Position || 'Position not selected')} · ${escapeHtml(formatDate(app.Timestamp))}</p>
+          </div>
+          <span class="status-pill status-${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span>
+        </div>
+        <div class="item-meta">
+          <span>${escapeHtml(app.Email || '')}</span>
+          <span>${escapeHtml(app.Discord || '')}</span>
+          <span>${escapeHtml(app.Phone || '')}</span>
+        </div>
+        <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-primary" type="button" data-view-application="${escapeHtml(rowNumber)}">View Full Application</button>
+          <button class="btn btn-secondary" type="button" data-app-status="Interview" data-app-row="${escapeHtml(rowNumber)}">Interview</button>
+          <button class="btn btn-secondary" type="button" data-app-status="Accepted" data-app-row="${escapeHtml(rowNumber)}">Accept</button>
+          <button class="btn btn-danger" type="button" data-app-status="Denied" data-app-row="${escapeHtml(rowNumber)}">Deny</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-view-application]').forEach(btn => {
+    btn.addEventListener('click', () => openApplicationModal(btn.dataset.viewApplication));
+  });
+
+  list.querySelectorAll('[data-app-status]').forEach(btn => {
+    btn.addEventListener('click', () => updateApplicationStatus(btn.dataset.appRow, btn.dataset.appStatus));
+  });
+}
+
+function openApplicationModal(rowNumber) {
+  const app = (state.applications || []).find(item => String(item._rowNumber || '') === String(rowNumber));
+  if (!app) return;
+
+  setText('applicationModalTitle', app.Name || 'Application');
+  setValue('applicationModalRow', app._rowNumber || '');
+  setValue('applicationModalStatus', app.Status || 'Pending');
+  setValue('applicationModalNotes', app['Review Notes'] || '');
+
+  const body = $('applicationModalBody');
+  if (body) {
+    const details = [
+      ['Name', app.Name],
+      ['Email', app.Email],
+      ['Discord', app.Discord],
+      ['Phone', app.Phone],
+      ['Date of Birth', app['Date of Birth']],
+      ['Time Zone', app['Time Zone']],
+      ['Position', app.Position],
+      ['Submitted', formatDate(app.Timestamp)],
+      ['Why', app.Why, true],
+      ['Skill', app.Skill, true],
+      ['Flaw', app.Flaw, true],
+      ['Customer Scenario', app['Customer Scenario'], true],
+      ['Questions', app.Questions, true],
+      ['Reviewed By', app['Reviewed By']],
+      ['Current Notes', app['Review Notes'], true]
+    ];
+
+    body.innerHTML = details.map(([label, value, wide]) => `
+      <div class="detail-block ${wide ? 'detail-block-wide' : ''}">
+        <span class="detail-label">${escapeHtml(label)}</span>
+        <div class="detail-value">${escapeHtml(value || '-')}</div>
+      </div>
+    `).join('');
+  }
+
+  showEl('applicationModalBackdrop');
+  showEl('applicationModal');
+}
+
+function closeApplicationModal() {
+  hideEl('applicationModalBackdrop');
+  hideEl('applicationModal');
+}
+
+async function saveApplicationReview(archived = false) {
+  const rowNumber = getValue('applicationModalRow');
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating application...');
+  try {
+    const res = await api('updateApplication', authPayload({
+      rowNumber,
+      status: getValue('applicationModalStatus'),
+      notes: getValue('applicationModalNotes'),
+      archived: archived ? 'Yes' : 'No'
+    }));
+
+    if (!res.ok) {
+      alert(res.message || 'Could not update application.');
+      return;
+    }
+
+    closeApplicationModal();
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Could not update application.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function updateApplicationStatus(rowNumber, status) {
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating application...');
+  try {
+    const res = await api('updateApplication', authPayload({ rowNumber, status }));
+    if (!res.ok) {
+      alert(res.message || 'Could not update application.');
+      return;
+    }
+
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Could not update application.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function loadContactMessages() {
+  const list = $('contactMessagesList');
+  if (list) list.innerHTML = '<div class="list-item"><p>Loading contact messages...</p></div>';
+
+  try {
+    const res = await api('loadContactMessages', authPayload({
+      status: getValue('contactStatusFilter', 'All'),
+      query: getValue('contactSearchInput')
+    }));
+
+    if (!res.ok) {
+      if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load contact messages.')}</p></div>`;
+      return;
+    }
+
+    state.contactMessages = res.messages || [];
+    setText('contactNewBadge', `${Number(res.newCount || 0)} new`);
+    renderContactMessages();
+  } catch (err) {
+    if (list) list.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load contact messages.')}</p></div>`;
+  }
+}
+
+function renderContactMessages() {
+  const list = $('contactMessagesList');
+  if (!list) return;
+
+  const messages = state.contactMessages || [];
+  if (!messages.length) {
+    list.innerHTML = '<div class="list-item"><p>No contact messages found.</p></div>';
+    return;
+  }
+
+  list.innerHTML = messages.map(message => {
+    const rowNumber = message._rowNumber || '';
+    const status = String(message.Status || 'New');
+    return `
+      <div class="response-card">
+        <div class="response-card-header">
+          <div>
+            <h4>${escapeHtml(message.Subject || 'Website message')}</h4>
+            <p>${escapeHtml(message.Name || 'Guest')} · ${escapeHtml(formatDate(message.Timestamp))}</p>
+          </div>
+          <span class="status-pill status-${escapeHtml(status.toLowerCase())}">${escapeHtml(status)}</span>
+        </div>
+        <p>${escapeHtml(message.Message || '')}</p>
+        <div class="item-meta">
+          <span>${escapeHtml(message.Email || '')}</span>
+          <span>${escapeHtml(message.Discord || '')}</span>
+          <span>${escapeHtml(message.Phone || '')}</span>
+        </div>
+        <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-secondary" type="button" data-contact-status="Open" data-contact-row="${escapeHtml(rowNumber)}">Mark Open</button>
+          <button class="btn btn-primary" type="button" data-contact-status="Resolved" data-contact-row="${escapeHtml(rowNumber)}">Resolve</button>
+          <button class="btn btn-danger" type="button" data-contact-status="Archived" data-contact-row="${escapeHtml(rowNumber)}">Archive</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-contact-status]').forEach(btn => {
+    btn.addEventListener('click', () => updateContactMessage(btn.dataset.contactRow, btn.dataset.contactStatus));
+  });
+}
+
+async function updateContactMessage(rowNumber, status) {
+  if (!rowNumber) return;
+
+  showLoading('Saving', 'Updating message...');
+  try {
+    const res = await api('updateContactMessage', authPayload({ rowNumber, status }));
+    if (!res.ok) {
+      alert(res.message || 'Could not update message.');
+      return;
+    }
+
+    await loadContactMessages();
+  } catch (err) {
+    alert(err.message || 'Could not update message.');
+  } finally {
+    hideLoading();
+  }
+}
+
+async function loadInventory() {
+  const summary = $('inventorySummary');
+  if (summary) summary.innerHTML = '<div class="list-item"><p>Loading inventory...</p></div>';
+
+  try {
+    const res = await api('loadInventory', authPayload());
+    if (!res.ok) {
+      if (summary) summary.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load inventory.')}</p></div>`;
+      return;
+    }
+
+    state.inventory = res;
+    renderInventory();
+  } catch (err) {
+    if (summary) summary.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load inventory.')}</p></div>`;
+  }
+}
+
+function renderInventory() {
+  const data = state.inventory || {};
+  const stock = Array.isArray(data.stock) ? data.stock : [];
+  const canManage = !!data.canManage;
+
+  renderInventorySection('vanInventoryList', stock.filter(row => String(row.section || '').toLowerCase() === 'van'), canManage);
+  renderInventorySection('officeInventoryList', stock.filter(row => String(row.section || '').toLowerCase() === 'office'), canManage);
+  renderStoreItems(data.storeItems || []);
+  renderResourceLinks(data.resourceLinks || []);
+  renderInventorySummary(collectInventoryRows());
+
+  const saveBtn = $('saveInventoryBtn');
+  if (saveBtn) saveBtn.disabled = !canManage;
+
+  document.querySelectorAll('[data-inventory-input]').forEach(input => {
+    input.addEventListener('input', () => renderInventorySummary(collectInventoryRows()));
+  });
+}
+
+function renderInventorySection(id, rows, canManage) {
+  const wrap = $(id);
+  if (!wrap) return;
+
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No stock rows yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = rows.map(row => {
+    const needed = Math.max(0, Number(row.targetQty || 0) - Number(row.currentQty || 0));
+    const fillCost = needed * Number(row.price247 || 0);
+
+    return `
+      <div class="inventory-row" data-inventory-row="${escapeHtml(row.rowNumber)}" data-section="${escapeHtml(row.section)}" data-item="${escapeHtml(row.item)}" data-target-qty="${escapeHtml(row.targetQty)}" data-price247="${escapeHtml(row.price247)}" data-our-price="${escapeHtml(row.ourPrice)}">
+        <div>
+          <div class="inventory-item-name">${escapeHtml(row.item || 'Item')}</div>
+          <div class="item-meta"><span>Need <strong class="inventory-need">${needed}</strong></span><span>${money(fillCost)}</span></div>
+        </div>
+        <label class="mini-field">
+          <span>Target</span>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.targetQty)}" disabled>
+        </label>
+        <label class="mini-field">
+          <span>Current</span>
+          <input data-inventory-input data-field="currentQty" type="number" min="0" step="1" value="${escapeHtml(row.currentQty)}" ${canManage ? '' : 'disabled'}>
+        </label>
+        <label class="mini-field">
+          <span>24/7 $</span>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.price247)}" disabled>
+        </label>
+        <label class="mini-field">
+          <span>Our $</span>
+          <input data-locked-inventory-field type="number" value="${escapeHtml(row.ourPrice)}" disabled>
+        </label>
+      </div>
+    `;
+  }).join('');
+}
+
+function collectInventoryRows() {
+  return Array.from(document.querySelectorAll('[data-inventory-row]')).map(rowEl => {
+    const row = {
+      rowNumber: rowEl.dataset.inventoryRow,
+      section: rowEl.dataset.section || '',
+      item: rowEl.dataset.item || '',
+      targetQty: Number(rowEl.dataset.targetQty || 0),
+      price247: Number(rowEl.dataset.price247 || 0),
+      ourPrice: Number(rowEl.dataset.ourPrice || 0),
+      active: 'Yes'
+    };
+
+    rowEl.querySelectorAll('[data-field]').forEach(input => {
+      row[input.dataset.field] = Number(input.value || 0);
+    });
+
+    return row;
+  });
+}
+
+function renderInventorySummary(rows) {
+  const wrap = $('inventorySummary');
+  if (!wrap) return;
+
+  const totals = {
+    vanNeed: 0,
+    officeNeed: 0,
+    vanCost: 0,
+    officeCost: 0
+  };
+
+  rows.forEach(row => {
+    const needed = Math.max(0, Number(row.targetQty || 0) - Number(row.currentQty || 0));
+    const fillCost = needed * Number(row.price247 || 0);
+    const section = String(row.section || '').toLowerCase();
+
+    if (section === 'van') {
+      totals.vanNeed += needed;
+      totals.vanCost += fillCost;
+    }
+    if (section === 'office') {
+      totals.officeNeed += needed;
+      totals.officeCost += fillCost;
+    }
+  });
+
+  wrap.innerHTML = `
+    <div class="inventory-summary-card"><span>Van Needed</span><strong>${totals.vanNeed}</strong></div>
+    <div class="inventory-summary-card"><span>Van Fill Cost</span><strong>${money(totals.vanCost)}</strong></div>
+    <div class="inventory-summary-card"><span>Office Needed</span><strong>${totals.officeNeed}</strong></div>
+    <div class="inventory-summary-card"><span>Office Fill Cost</span><strong>${money(totals.officeCost)}</strong></div>
+  `;
+}
+
+function renderStoreItems(items) {
+  const wrap = $('storeItemsList');
+  if (!wrap) return;
+
+  if (!items.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No 24/7 items yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = items.map(item => `
+    <div class="price-row">
+      <span>${escapeHtml(item.item || 'Item')}</span>
+      <strong>${money(item.price)}</strong>
+    </div>
+  `).join('');
+}
+
+function renderResourceLinks(links) {
+  const wrap = $('resourceLinksList');
+  if (!wrap) return;
+
+  if (!links.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No resource links yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = links.map(link => {
+    const url = safeResourceUrl(link.url);
+    if (!url) {
+      return `
+        <div class="price-row resource-link-muted">
+          <span>${escapeHtml(link.title || 'Resource')}</span>
+          <span>Add link in sheet</span>
+        </div>
+      `;
+    }
+
+    return `
+      <a class="price-row" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+        <span>${escapeHtml(link.title || 'Resource')}</span>
+        <strong>Open</strong>
+      </a>
+    `;
+  }).join('');
+}
+
+function safeResourceUrl(url) {
+  const value = String(url || '').trim();
+  if (!value || /^javascript:/i.test(value)) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^[a-z0-9._/-]+\.html(?:#[a-z0-9_-]+)?$/i.test(value)) return value;
+  return '';
+}
+
+async function saveInventoryNow() {
+  const stock = collectInventoryRows();
+  if (!stock.length) return;
+
+  showLoading('Saving', 'Updating inventory...');
+  try {
+    const res = await api('saveInventory', authPayload({ stock }));
+    if (!res.ok) {
+      alert(res.message || 'Could not save inventory.');
+      return;
+    }
+
+    state.inventory = {
+      ...state.inventory,
+      ...res,
+      canManage: state.inventory?.canManage
+    };
+    renderInventory();
+    alert(res.message || 'Inventory saved.');
+  } catch (err) {
+    alert(err.message || 'Could not save inventory.');
+  } finally {
+    hideLoading();
+  }
+}
+
 async function loadAds() {
   const list = $('adsList');
   if (list) list.innerHTML = '<div class="list-item"><p>Loading ads...</p></div>';
@@ -964,20 +1775,237 @@ function renderAds(ads) {
           <span>${escapeHtml(formatDate(ad['Created At']))}</span>
         </div>
         <div class="button-row" style="margin-top:10px">
+          <button class="btn btn-secondary" type="button" data-copy-ad="${escapeHtml(id)}">Copy Post</button>
           <button class="btn btn-danger" type="button" data-delete-ad="${escapeHtml(id)}">Delete</button>
         </div>
       </div>
     `;
   }).join('');
 
+  list.querySelectorAll('[data-copy-ad]').forEach(btn => {
+    const ad = ads.find(item => String(item.ID || item.id || '') === btn.dataset.copyAd);
+    btn.addEventListener('click', () => copyText(buildAdCopy(ad?.Title || '', ad?.['Ad Text'] || '')));
+  });
+
   list.querySelectorAll('[data-delete-ad]').forEach(btn => {
     btn.addEventListener('click', () => deleteAd(btn.dataset.deleteAd));
   });
 }
 
-async function saveAdNow() {
+function buildAdCopy(title, text, options = {}) {
+  const cleanTitle = String(title || '').trim();
+  const cleanText = String(text || '').trim();
+  const platform = options.platform || 'All';
+  const campaign = options.campaign || 'General Promo';
+  const tone = options.tone || 'Friendly';
+  const audience = String(options.audience || '').trim();
+  const featuredItem = String(options.featuredItem || '').trim();
+  const offer = String(options.offer || '').trim();
+  const cta = String(options.cta || '').trim() || "Stop by Sean's Donuts today";
+  const sale = getActiveSale();
+
+  const saleLine = sale.active
+    ? `${sale.percent}% off is active${sale.end && !Number.isNaN(sale.end) ? ` for ${formatCountdown(sale.end)}` : ' for a limited time'}.`
+    : '';
+
+  const base = {
+    title: cleanTitle || defaultAdHeadline(campaign, featuredItem),
+    text: cleanText || defaultAdBody(campaign, featuredItem, audience),
+    campaign,
+    tone,
+    audience,
+    featuredItem,
+    offer: offer || saleLine,
+    cta
+  };
+
+  const variants = [];
+  if (platform === 'All' || platform === 'Discord') variants.push(['Discord', buildDiscordAd(base)]);
+  if (platform === 'All' || platform === 'Social') variants.push(['Social Media', buildSocialAd(base)]);
+  if (platform === 'All' || platform === 'Customer') variants.push(['Customer Outreach', buildCustomerAd(base)]);
+
+  return variants
+    .map(([label, body]) => `--- ${label} ---\n${body}`)
+    .join('\n\n');
+}
+
+function defaultAdHeadline(campaign, featuredItem) {
+  const item = featuredItem || 'fresh favorites';
+  if (campaign === 'Limited Time Sale') return `${item} sale is live`;
+  if (campaign === 'New Menu Item') return `New at Sean's Donuts: ${item}`;
+  if (campaign === 'Event') return "Sean's Donuts event update";
+  if (campaign === 'Hiring') return "Sean's Donuts is hiring";
+  if (campaign === 'Raffle') return "Raffle tickets are available";
+  return `Sean's Donuts: ${item}`;
+}
+
+function defaultAdBody(campaign, featuredItem, audience) {
+  const who = audience ? ` for ${audience}` : '';
+  const item = featuredItem || 'donuts, drinks, and quick bites';
+  if (campaign === 'Hiring') return `We are looking for reliable crew members${who}.`;
+  if (campaign === 'Raffle') return `Raffle tickets are available with Sean's Donuts orders.`;
+  if (campaign === 'Event') return `We are getting ready for a Sean's Donuts event${who}.`;
+  return `Fresh ${item} are ready${who}.`;
+}
+
+function toneOpener(tone) {
+  if (tone === 'Hype') return 'Do not miss this one.';
+  if (tone === 'Professional') return 'Sean\'s Donuts has an update for customers.';
+  if (tone === 'Playful') return 'Fresh, fast, and worth the stop.';
+  return 'Quick Sean\'s Donuts update.';
+}
+
+function compactLines(lines) {
+  return lines
+    .map(line => String(line || '').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildDiscordAd(base) {
+  return compactLines([
+    base.title,
+    toneOpener(base.tone),
+    base.text,
+    base.offer,
+    base.cta,
+    base.campaign !== 'Hiring' ? 'Ask a crew member if you have questions.' : 'Message us if you want to apply.'
+  ]);
+}
+
+function buildSocialAd(base) {
+  const tags = buildAdTags(base);
+  return compactLines([
+    base.title,
+    base.text,
+    base.offer,
+    base.cta,
+    tags
+  ]);
+}
+
+function buildCustomerAd(base) {
+  return compactLines([
+    `Hey! ${base.title}`,
+    base.text,
+    base.offer,
+    base.cta
+  ]);
+}
+
+function buildAdTags(base) {
+  const tags = ['#SeansDonuts', '#Cafe', '#Fresh'];
+  if (base.campaign === 'Hiring') tags.push('#Hiring');
+  if (base.campaign === 'Raffle') tags.push('#Raffle');
+  if (base.featuredItem) tags.push(`#${base.featuredItem.replace(/[^a-z0-9]/gi, '')}`);
+  return tags.join(' ');
+}
+
+function getAdOptions() {
+  return {
+    campaign: getValue('adCampaignType') || 'General Promo',
+    platform: getValue('adPlatform') || 'All',
+    tone: getValue('adTone') || 'Friendly',
+    audience: getValue('adAudience'),
+    featuredItem: getValue('adFeaturedItem'),
+    offer: getValue('adOffer'),
+    cta: getValue('adCTA')
+  };
+}
+
+function generateAdCopy() {
   const title = getValue('adTitle').trim();
   const text = getValue('adText').trim();
+  const options = getAdOptions();
+
+  if (!title && !text && !options.featuredItem && !options.offer) {
+    alert('Add a headline, featured item, offer, or details first.');
+    return '';
+  }
+
+  const copy = buildAdCopy(title, text, options);
+  setValue('adGeneratedText', copy);
+  return copy;
+}
+
+function applyAdTemplate(template) {
+  const templates = {
+    sale: {
+      title: 'Limited-time Sean\'s Donuts sale',
+      campaign: 'Limited Time Sale',
+      tone: 'Hype',
+      featuredItem: 'donuts and drinks',
+      offer: getActiveSale().active ? `${getActiveSale().percent}% off today` : 'special pricing for a limited time',
+      cta: 'Order before the sale ends',
+      text: 'Fresh favorites are ready and the discount applies automatically at checkout.'
+    },
+    event: {
+      title: 'Sean\'s Donuts event service',
+      campaign: 'Event',
+      tone: 'Professional',
+      featuredItem: 'event orders',
+      offer: 'fast cafe service for your group',
+      cta: 'Reach out to plan your order',
+      text: 'We can help with quick bites, drinks, and simple cafe service for events.'
+    },
+    hiring: {
+      title: 'Sean\'s Donuts is hiring',
+      campaign: 'Hiring',
+      tone: 'Friendly',
+      featuredItem: 'crew roles',
+      offer: 'join the cafe team',
+      cta: 'Apply through the Careers page',
+      text: 'We are looking for reliable people who can communicate clearly and help customers.'
+    },
+    raffle: {
+      title: 'Raffle tickets are available',
+      campaign: 'Raffle',
+      tone: 'Playful',
+      featuredItem: 'raffle tickets',
+      offer: 'ticket sales are open while supplies last',
+      cta: 'Ask for tickets with your order',
+      text: 'Grab raffle tickets with your Sean\'s Donuts order and get entered for the next draw.'
+    }
+  };
+
+  const picked = templates[template];
+  if (!picked) return;
+
+  setValue('adTitle', picked.title);
+  setValue('adCampaignType', picked.campaign);
+  setValue('adTone', picked.tone);
+  setValue('adFeaturedItem', picked.featuredItem);
+  setValue('adOffer', picked.offer);
+  setValue('adCTA', picked.cta);
+  setValue('adText', picked.text);
+  generateAdCopy();
+}
+
+async function copyText(text) {
+  const value = String(text || '').trim();
+  if (!value) {
+    alert('Nothing to copy yet.');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(value);
+    alert('Message copied.');
+  } catch (err) {
+    setValue('adGeneratedText', value);
+    alert('Copy blocked by browser. The message is ready in the copy box.');
+  }
+}
+
+function copyGeneratedAdCopy() {
+  const copy = getValue('adGeneratedText').trim() || generateAdCopy();
+  copyText(copy);
+}
+
+async function saveAdNow() {
+  const title = getValue('adTitle').trim();
+  const generated = getValue('adGeneratedText').trim();
+  const text = generated || generateAdCopy() || getValue('adText').trim();
   const status = getValue('adStatus') || 'Active';
 
   if (!title || !text) {
@@ -995,6 +2023,14 @@ async function saveAdNow() {
 
     setValue('adTitle', '');
     setValue('adText', '');
+    setValue('adAudience', '');
+    setValue('adFeaturedItem', '');
+    setValue('adOffer', '');
+    setValue('adCTA', '');
+    setValue('adGeneratedText', '');
+    setValue('adCampaignType', 'General Promo');
+    setValue('adPlatform', 'All');
+    setValue('adTone', 'Friendly');
     setValue('adStatus', 'Active');
     await loadAds();
   } catch (err) {
@@ -1167,7 +2203,7 @@ function renderSettingsForms() {
   setValue('settingsAnnouncement', settings.announcement || '');
   setValue('settingsBankId', settings.bankId || '');
   setValue('settingsDiscordInviteUrl', settings.discordInviteUrl || '');
-  setValue('settingsMileageRate', settings.mileageRate || 0);
+  setValue('settingsMileageRate', settings.mileageRate || 50);
 
   setValue('saleEnabled', settings.saleEnabled || 'No');
   setValue('salePercent', settings.salePercent || '0');
@@ -1199,7 +2235,7 @@ async function saveSettingsNow() {
       announcement: getValue('settingsAnnouncement'),
       bankId: getValue('settingsBankId'),
       discordInviteUrl: getValue('settingsDiscordInviteUrl'),
-      mileageRate: Number(getValue('settingsMileageRate') || 0)
+      mileageRate: Number(getValue('settingsMileageRate') || 50)
     }));
 
     if (!res.ok) {
@@ -1316,6 +2352,7 @@ function renderEmployeesAdmin() {
         item.Name || item.name,
         item.Email || item.email,
         item.Username || item.username,
+        item['Personal Bank ID'] || item.personalBankId || item.BankID,
         item.Role || item.role,
         item.Active || item.active
       ].join(' ').toLowerCase();
@@ -1344,6 +2381,7 @@ function renderEmployeesAdmin() {
     const name = item.Name || item.name || 'Unnamed Employee';
     const email = item.Email || item.email || '';
     const username = item.Username || item.username || '';
+    const bankId = item['Personal Bank ID'] || item.personalBankId || item.BankID || '';
 
     const canEdit = canCurrentUserEditEmployee(item);
 
@@ -1357,6 +2395,7 @@ function renderEmployeesAdmin() {
           <div class="settings-entry-sub">
             ${escapeHtml(role)} · ${escapeHtml(active)} · ${escapeHtml(username || email || 'No login set')}
           </div>
+          ${bankId ? `<div class="settings-entry-sub">Bank ${escapeHtml(bankId)}</div>` : ''}
         </div>
         <button type="button" class="btn btn-secondary" data-open-employee="${index}" ${canEdit ? '' : 'disabled'}>
           ${canEdit ? 'Update' : 'Locked'}
@@ -1386,6 +2425,7 @@ function openEmployeeModal(index) {
   setValue('employeeModalEmail', item.Email || item.email || '');
   setValue('employeeModalUsername', item.Username || item.username || '');
   setValue('employeeModalPin', item.PIN || item.pin || '');
+  setValue('employeeModalBankId', item['Personal Bank ID'] || item.personalBankId || item.BankID || '');
   renderEmployeeRoleOptions(selectedRole);
   setValue('employeeModalActive', item.Active || item.active || 'Yes');
 
@@ -1417,6 +2457,7 @@ function readEmployeeModal() {
     Email: getValue('employeeModalEmail').trim(),
     Username: getValue('employeeModalUsername').trim(),
     PIN: getValue('employeeModalPin').trim(),
+    'Personal Bank ID': getValue('employeeModalBankId').trim(),
     Role: getValue('employeeModalRole') || 'Employee',
     Active: getValue('employeeModalActive') || 'Yes'
   };
@@ -1479,6 +2520,7 @@ async function saveEmployeesNow() {
         Email: item.Email || item.email || '',
         Username: item.Username || item.username || '',
         PIN: item.PIN || item.pin || '',
+        'Personal Bank ID': item['Personal Bank ID'] || item.personalBankId || item.BankID || '',
         Role: item.Role || item.role || 'Employee',
         Active: item.Active || item.active || 'Yes'
       }))
@@ -1767,8 +2809,32 @@ function init() {
   $('clearRaffleWinnerBtn')?.addEventListener('click', clearRaffleWinner);
   $('resetRaffleBtn')?.addEventListener('click', resetRaffle);
 
+  $('applicationsRefreshBtn')?.addEventListener('click', loadApplications);
+  $('applicationStatusFilter')?.addEventListener('change', loadApplications);
+  $('applicationSearchInput')?.addEventListener('input', debounce(loadApplications, 250));
+  $('applicationModalClose')?.addEventListener('click', closeApplicationModal);
+  $('applicationModalCancel')?.addEventListener('click', closeApplicationModal);
+  $('applicationModalSave')?.addEventListener('click', () => saveApplicationReview(false));
+  $('applicationModalArchive')?.addEventListener('click', () => saveApplicationReview(true));
+  $('applicationModalBackdrop')?.addEventListener('click', closeApplicationModal);
+
+  $('contactRefreshBtn')?.addEventListener('click', loadContactMessages);
+  $('contactStatusFilter')?.addEventListener('change', loadContactMessages);
+  $('contactSearchInput')?.addEventListener('input', debounce(loadContactMessages, 250));
+
+  $('inventoryRefreshBtn')?.addEventListener('click', loadInventory);
+  $('saveInventoryBtn')?.addEventListener('click', saveInventoryNow);
+
+  $('bankRefreshBtn')?.addEventListener('click', loadBank);
+  $('saveBankTransactionBtn')?.addEventListener('click', saveBankTransactionNow);
+
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
+  $('generateAdCopyBtn')?.addEventListener('click', generateAdCopy);
+  $('copyAdCopyBtn')?.addEventListener('click', copyGeneratedAdCopy);
   $('saveAdBtn')?.addEventListener('click', saveAdNow);
+  document.querySelectorAll('[data-ad-template]').forEach(btn => {
+    btn.addEventListener('click', () => applyAdTemplate(btn.dataset.adTemplate));
+  });
   $('saveRolePermissionsBtn')?.addEventListener('click', saveRolePermissionsNow);
   $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
   $('addEmployeeRowBtn')?.addEventListener('click', () => openEmployeeModal(-1));

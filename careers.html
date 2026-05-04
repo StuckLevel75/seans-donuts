@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Careers - Sean's Donuts</title>
+  <link rel="stylesheet" href="website.css">
+</head>
+<body>
+  <nav class="site-nav">
+    <a class="brand" href="index.html">Sean's Donuts</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="menu.html">Menu</a>
+      <a href="careers.html">Careers</a>
+      <a href="crew.html">Crew</a>
+      <a href="contact.html">Contact</a>
+      <a href="advertise.html">Advertise</a>
+      <a class="nav-portal" href="portal-link.html">Employee Portal</a>
+    </div>
+  </nav>
+
+  <main class="form-page">
+    <p class="eyebrow">Now hiring</p>
+    <h1>Sean's Donuts Application</h1>
+    <p class="form-note">Questions marked OOC are out-of-character. Questions marked IC are in-character.</p>
+
+    <form id="applicationForm" class="sd-form">
+      <label>OOC Email *</label>
+      <input type="email" name="email" required>
+
+      <label>OOC Discord Username *</label>
+      <input type="text" name="discord" required>
+
+      <label>IC First and Last Name *</label>
+      <input type="text" name="name" required>
+
+      <label>OOC Date of Birth *</label>
+      <input type="date" name="age" required>
+
+      <label>OOC Time Zone *</label>
+      <input type="text" name="timezone" required>
+
+      <label>IC Phone Number *</label>
+      <input type="text" name="phone" required>
+
+      <label>IC Why do you want to work for Sean's Donuts? *</label>
+      <textarea name="why" required></textarea>
+
+      <label>IC What skill can you bring to Sean's Donuts? *</label>
+      <textarea name="skill" required></textarea>
+
+      <label>IC What is your biggest personal flaw? *</label>
+      <textarea name="flaw" required></textarea>
+
+      <label>IC How would you handle a disgruntled customer? *</label>
+      <textarea name="customer" required></textarea>
+
+      <label>IC Position interested in *</label>
+      <select name="position" required>
+        <option value="">Select a position</option>
+        <option>Delivery Driver</option>
+        <option>Event Staff</option>
+        <option>Crew Member</option>
+        <option>Other</option>
+      </select>
+
+      <label>Any questions for us?</label>
+      <textarea name="questions"></textarea>
+
+      <button type="submit">Submit Application</button>
+      <div class="form-status" aria-live="polite"></div>
+    </form>
+  </main>
+
+  <script src="website.js"></script>
+</body>
+</html>
