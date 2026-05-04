@@ -144,18 +144,19 @@ function initHeroRotators() {
       if (attempts >= images.length) return;
 
       const imagePath = images[nextIndex % images.length];
+      const imageUrl = new URL(imagePath, window.location.href).href;
       const testImage = new Image();
 
       testImage.onload = () => {
         index = nextIndex % images.length;
-        hero.style.setProperty('--hero-image', `url("${imagePath}")`);
+        hero.style.setProperty('--hero-image', `url("${imageUrl}")`);
       };
 
       testImage.onerror = () => {
         if (images.length > 1) showImage((nextIndex + 1) % images.length, attempts + 1);
       };
 
-      testImage.src = imagePath;
+      testImage.src = imageUrl;
     }
 
     showImage(index);
