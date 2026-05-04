@@ -273,23 +273,34 @@
           </div>
 
           <div id="inventorySummary" class="inventory-summary"></div>
-          <div class="inventory-layout">
-            <div class="card">
-              <h3>Van Stock</h3>
-              <div id="vanInventoryList" class="inventory-list"></div>
-            </div>
-            <div class="card">
-              <h3>Office Stock</h3>
-              <div id="officeInventoryList" class="inventory-list"></div>
-            </div>
-            <div class="card">
-              <h3>24/7 Items</h3>
-              <div id="storeItemsList" class="price-list"></div>
-            </div>
-            <div class="card">
-              <h3>Links</h3>
-              <div id="resourceLinksList" class="price-list"></div>
-            </div>
+          <div class="inventory-dropdowns">
+            <details class="settings-popout inventory-popout" open>
+              <summary>Van Stock</summary>
+              <div class="settings-popout-body">
+                <div id="vanInventoryList" class="inventory-list"></div>
+              </div>
+            </details>
+
+            <details class="settings-popout inventory-popout">
+              <summary>Office Stock</summary>
+              <div class="settings-popout-body">
+                <div id="officeInventoryList" class="inventory-list"></div>
+              </div>
+            </details>
+
+            <details class="settings-popout inventory-popout">
+              <summary>24/7 Items</summary>
+              <div class="settings-popout-body">
+                <div id="storeItemsList" class="price-list"></div>
+              </div>
+            </details>
+
+            <details class="settings-popout inventory-popout">
+              <summary>Links</summary>
+              <div class="settings-popout-body">
+                <div id="resourceLinksList" class="price-list"></div>
+              </div>
+            </details>
           </div>
         </section>
 
