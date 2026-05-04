@@ -653,7 +653,7 @@ textarea:focus {
 
 .inventory-row {
   display: grid;
-  grid-template-columns: minmax(110px, 1.2fr) repeat(5, minmax(74px, 0.8fr));
+  grid-template-columns: minmax(130px, 1.35fr) repeat(4, minmax(78px, 0.8fr));
   gap: 8px;
   align-items: end;
   padding: 10px;
@@ -681,6 +681,13 @@ textarea:focus {
 .mini-field input {
   min-width: 0;
   padding: 8px 9px;
+}
+
+.mini-field input:disabled {
+  background: #f4eadf;
+  color: var(--muted);
+  font-weight: 800;
+  opacity: 1;
 }
 
 .inventory-need {
