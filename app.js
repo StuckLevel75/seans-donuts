@@ -11,6 +11,7 @@ const state = {
   paymentMethods: ['Cash', 'Invoice', 'Bank ID'],
   applications: [],
   contactMessages: [],
+  inventory: null,
   activeTab: 'dashboard',
   loaded: {},
   saleTimerId: null
@@ -24,6 +25,7 @@ const tabs = [
   { key: 'raffle', label: 'Raffle', permission: 'canViewRaffle' },
   { key: 'applications', label: 'Applications', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
   { key: 'contact', label: 'Contact', anyPermission: ['isOwner', 'isAdmin', 'isManager'] },
+  { key: 'inventory', label: 'Inventory', permission: 'canViewInventory' },
   { key: 'ads', label: 'Ads', anyPermission: ['canManageAds', 'isOwner'] },
   { key: 'payroll', label: 'Payroll', permission: 'canViewPayroll' },
   { key: 'employees', label: 'Employees', anyPermission: ['canManageEmployees', 'isOwner'] },
@@ -303,6 +305,7 @@ function openTab(tabKey) {
   if (tabKey === 'raffle') loadRaffleOverview();
   if (tabKey === 'applications') loadApplications();
   if (tabKey === 'contact') loadContactMessages();
+  if (tabKey === 'inventory') loadInventory();
   if (tabKey === 'ads') loadAds();
   if (tabKey === 'payroll') loadPayroll();
   if (tabKey === 'employees') loadAdminData();
@@ -1271,6 +1274,218 @@ async function updateContactMessage(rowNumber, status) {
   }
 }
 
+async function loadInventory() {
+  const summary = $('inventorySummary');
+  if (summary) summary.innerHTML = '<div class="list-item"><p>Loading inventory...</p></div>';
+
+  try {
+    const res = await api('loadInventory', authPayload());
+    if (!res.ok) {
+      if (summary) summary.innerHTML = `<div class="list-item"><p>${escapeHtml(res.message || 'Could not load inventory.')}</p></div>`;
+      return;
+    }
+
+    state.inventory = res;
+    renderInventory();
+  } catch (err) {
+    if (summary) summary.innerHTML = `<div class="list-item"><p>${escapeHtml(err.message || 'Could not load inventory.')}</p></div>`;
+  }
+}
+
+function renderInventory() {
+  const data = state.inventory || {};
+  const stock = Array.isArray(data.stock) ? data.stock : [];
+  const canManage = !!data.canManage;
+
+  renderInventorySection('vanInventoryList', stock.filter(row => String(row.section || '').toLowerCase() === 'van'), canManage);
+  renderInventorySection('officeInventoryList', stock.filter(row => String(row.section || '').toLowerCase() === 'office'), canManage);
+  renderStoreItems(data.storeItems || []);
+  renderResourceLinks(data.resourceLinks || []);
+  renderInventorySummary(collectInventoryRows());
+
+  const saveBtn = $('saveInventoryBtn');
+  if (saveBtn) saveBtn.disabled = !canManage;
+
+  document.querySelectorAll('[data-inventory-input]').forEach(input => {
+    input.addEventListener('input', () => renderInventorySummary(collectInventoryRows()));
+  });
+}
+
+function renderInventorySection(id, rows, canManage) {
+  const wrap = $(id);
+  if (!wrap) return;
+
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No stock rows yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = rows.map(row => {
+    const needed = Math.max(0, Number(row.targetQty || 0) - Number(row.currentQty || 0));
+    const fillCost = needed * Number(row.price247 || 0);
+
+    return `
+      <div class="inventory-row" data-inventory-row="${escapeHtml(row.rowNumber)}" data-section="${escapeHtml(row.section)}" data-item="${escapeHtml(row.item)}">
+        <div>
+          <div class="inventory-item-name">${escapeHtml(row.item || 'Item')}</div>
+          <div class="item-meta"><span>Need <strong class="inventory-need">${needed}</strong></span><span>${money(fillCost)}</span></div>
+        </div>
+        <label class="mini-field">
+          <span>Target</span>
+          <input data-inventory-input data-field="targetQty" type="number" min="0" step="1" value="${escapeHtml(row.targetQty)}" ${canManage ? '' : 'disabled'}>
+        </label>
+        <label class="mini-field">
+          <span>Current</span>
+          <input data-inventory-input data-field="currentQty" type="number" min="0" step="1" value="${escapeHtml(row.currentQty)}" ${canManage ? '' : 'disabled'}>
+        </label>
+        <label class="mini-field">
+          <span>Weight</span>
+          <input data-inventory-input data-field="unitWeight" type="number" min="0" step="0.01" value="${escapeHtml(row.unitWeight)}" ${canManage ? '' : 'disabled'}>
+        </label>
+        <label class="mini-field">
+          <span>24/7 $</span>
+          <input data-inventory-input data-field="price247" type="number" min="0" step="0.01" value="${escapeHtml(row.price247)}" ${canManage ? '' : 'disabled'}>
+        </label>
+        <label class="mini-field">
+          <span>Our $</span>
+          <input data-inventory-input data-field="ourPrice" type="number" min="0" step="0.01" value="${escapeHtml(row.ourPrice)}" ${canManage ? '' : 'disabled'}>
+        </label>
+      </div>
+    `;
+  }).join('');
+}
+
+function collectInventoryRows() {
+  return Array.from(document.querySelectorAll('[data-inventory-row]')).map(rowEl => {
+    const row = {
+      rowNumber: rowEl.dataset.inventoryRow,
+      section: rowEl.dataset.section || '',
+      item: rowEl.dataset.item || '',
+      active: 'Yes'
+    };
+
+    rowEl.querySelectorAll('[data-field]').forEach(input => {
+      row[input.dataset.field] = Number(input.value || 0);
+    });
+
+    return row;
+  });
+}
+
+function renderInventorySummary(rows) {
+  const wrap = $('inventorySummary');
+  if (!wrap) return;
+
+  const totals = {
+    vanNeed: 0,
+    officeNeed: 0,
+    vanCost: 0,
+    officeCost: 0
+  };
+
+  rows.forEach(row => {
+    const needed = Math.max(0, Number(row.targetQty || 0) - Number(row.currentQty || 0));
+    const fillCost = needed * Number(row.price247 || 0);
+    const section = String(row.section || '').toLowerCase();
+
+    if (section === 'van') {
+      totals.vanNeed += needed;
+      totals.vanCost += fillCost;
+    }
+    if (section === 'office') {
+      totals.officeNeed += needed;
+      totals.officeCost += fillCost;
+    }
+  });
+
+  wrap.innerHTML = `
+    <div class="inventory-summary-card"><span>Van Needed</span><strong>${totals.vanNeed}</strong></div>
+    <div class="inventory-summary-card"><span>Van Fill Cost</span><strong>${money(totals.vanCost)}</strong></div>
+    <div class="inventory-summary-card"><span>Office Needed</span><strong>${totals.officeNeed}</strong></div>
+    <div class="inventory-summary-card"><span>Office Fill Cost</span><strong>${money(totals.officeCost)}</strong></div>
+  `;
+}
+
+function renderStoreItems(items) {
+  const wrap = $('storeItemsList');
+  if (!wrap) return;
+
+  if (!items.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No 24/7 items yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = items.map(item => `
+    <div class="price-row">
+      <span>${escapeHtml(item.item || 'Item')}</span>
+      <strong>${money(item.price)}</strong>
+    </div>
+  `).join('');
+}
+
+function renderResourceLinks(links) {
+  const wrap = $('resourceLinksList');
+  if (!wrap) return;
+
+  if (!links.length) {
+    wrap.innerHTML = '<div class="list-item"><p>No resource links yet.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = links.map(link => {
+    const url = safeResourceUrl(link.url);
+    if (!url) {
+      return `
+        <div class="price-row resource-link-muted">
+          <span>${escapeHtml(link.title || 'Resource')}</span>
+          <span>Add link in sheet</span>
+        </div>
+      `;
+    }
+
+    return `
+      <a class="price-row" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+        <span>${escapeHtml(link.title || 'Resource')}</span>
+        <strong>Open</strong>
+      </a>
+    `;
+  }).join('');
+}
+
+function safeResourceUrl(url) {
+  const value = String(url || '').trim();
+  if (!value || /^javascript:/i.test(value)) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^[a-z0-9._/-]+\.html(?:#[a-z0-9_-]+)?$/i.test(value)) return value;
+  return '';
+}
+
+async function saveInventoryNow() {
+  const stock = collectInventoryRows();
+  if (!stock.length) return;
+
+  showLoading('Saving', 'Updating inventory...');
+  try {
+    const res = await api('saveInventory', authPayload({ stock }));
+    if (!res.ok) {
+      alert(res.message || 'Could not save inventory.');
+      return;
+    }
+
+    state.inventory = {
+      ...state.inventory,
+      ...res,
+      canManage: state.inventory?.canManage
+    };
+    renderInventory();
+    alert(res.message || 'Inventory saved.');
+  } catch (err) {
+    alert(err.message || 'Could not save inventory.');
+  } finally {
+    hideLoading();
+  }
+}
+
 async function loadAds() {
   const list = $('adsList');
   if (list) list.innerHTML = '<div class="list-item"><p>Loading ads...</p></div>';
@@ -1326,32 +1541,193 @@ function renderAds(ads) {
   });
 }
 
-function buildAdCopy(title, text) {
-  const lines = [];
+function buildAdCopy(title, text, options = {}) {
   const cleanTitle = String(title || '').trim();
   const cleanText = String(text || '').trim();
+  const platform = options.platform || 'All';
+  const campaign = options.campaign || 'General Promo';
+  const tone = options.tone || 'Friendly';
+  const audience = String(options.audience || '').trim();
+  const featuredItem = String(options.featuredItem || '').trim();
+  const offer = String(options.offer || '').trim();
+  const cta = String(options.cta || '').trim() || "Stop by Sean's Donuts today";
   const sale = getActiveSale();
 
-  if (cleanTitle) lines.push(cleanTitle);
-  if (cleanText) lines.push(cleanText);
-  if (sale.active) lines.push(`${sale.percent}% off is active for a limited time.`);
-  lines.push("Visit Sean's Donuts today.");
+  const saleLine = sale.active
+    ? `${sale.percent}% off is active${sale.end && !Number.isNaN(sale.end) ? ` for ${formatCountdown(sale.end)}` : ' for a limited time'}.`
+    : '';
 
-  return lines.join('\n\n');
+  const base = {
+    title: cleanTitle || defaultAdHeadline(campaign, featuredItem),
+    text: cleanText || defaultAdBody(campaign, featuredItem, audience),
+    campaign,
+    tone,
+    audience,
+    featuredItem,
+    offer: offer || saleLine,
+    cta
+  };
+
+  const variants = [];
+  if (platform === 'All' || platform === 'Discord') variants.push(['Discord', buildDiscordAd(base)]);
+  if (platform === 'All' || platform === 'Social') variants.push(['Social Media', buildSocialAd(base)]);
+  if (platform === 'All' || platform === 'Customer') variants.push(['Customer Outreach', buildCustomerAd(base)]);
+
+  return variants
+    .map(([label, body]) => `--- ${label} ---\n${body}`)
+    .join('\n\n');
+}
+
+function defaultAdHeadline(campaign, featuredItem) {
+  const item = featuredItem || 'fresh favorites';
+  if (campaign === 'Limited Time Sale') return `${item} sale is live`;
+  if (campaign === 'New Menu Item') return `New at Sean's Donuts: ${item}`;
+  if (campaign === 'Event') return "Sean's Donuts event update";
+  if (campaign === 'Hiring') return "Sean's Donuts is hiring";
+  if (campaign === 'Raffle') return "Raffle tickets are available";
+  return `Sean's Donuts: ${item}`;
+}
+
+function defaultAdBody(campaign, featuredItem, audience) {
+  const who = audience ? ` for ${audience}` : '';
+  const item = featuredItem || 'donuts, drinks, and quick bites';
+  if (campaign === 'Hiring') return `We are looking for reliable crew members${who}.`;
+  if (campaign === 'Raffle') return `Raffle tickets are available with Sean's Donuts orders.`;
+  if (campaign === 'Event') return `We are getting ready for a Sean's Donuts event${who}.`;
+  return `Fresh ${item} are ready${who}.`;
+}
+
+function toneOpener(tone) {
+  if (tone === 'Hype') return 'Do not miss this one.';
+  if (tone === 'Professional') return 'Sean\'s Donuts has an update for customers.';
+  if (tone === 'Playful') return 'Fresh, fast, and worth the stop.';
+  return 'Quick Sean\'s Donuts update.';
+}
+
+function compactLines(lines) {
+  return lines
+    .map(line => String(line || '').trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildDiscordAd(base) {
+  return compactLines([
+    base.title,
+    toneOpener(base.tone),
+    base.text,
+    base.offer,
+    base.cta,
+    base.campaign !== 'Hiring' ? 'Ask a crew member if you have questions.' : 'Message us if you want to apply.'
+  ]);
+}
+
+function buildSocialAd(base) {
+  const tags = buildAdTags(base);
+  return compactLines([
+    base.title,
+    base.text,
+    base.offer,
+    base.cta,
+    tags
+  ]);
+}
+
+function buildCustomerAd(base) {
+  return compactLines([
+    `Hey! ${base.title}`,
+    base.text,
+    base.offer,
+    base.cta
+  ]);
+}
+
+function buildAdTags(base) {
+  const tags = ['#SeansDonuts', '#Cafe', '#Fresh'];
+  if (base.campaign === 'Hiring') tags.push('#Hiring');
+  if (base.campaign === 'Raffle') tags.push('#Raffle');
+  if (base.featuredItem) tags.push(`#${base.featuredItem.replace(/[^a-z0-9]/gi, '')}`);
+  return tags.join(' ');
+}
+
+function getAdOptions() {
+  return {
+    campaign: getValue('adCampaignType') || 'General Promo',
+    platform: getValue('adPlatform') || 'All',
+    tone: getValue('adTone') || 'Friendly',
+    audience: getValue('adAudience'),
+    featuredItem: getValue('adFeaturedItem'),
+    offer: getValue('adOffer'),
+    cta: getValue('adCTA')
+  };
 }
 
 function generateAdCopy() {
   const title = getValue('adTitle').trim();
   const text = getValue('adText').trim();
+  const options = getAdOptions();
 
-  if (!title && !text) {
-    alert('Add an ad title or message first.');
+  if (!title && !text && !options.featuredItem && !options.offer) {
+    alert('Add a headline, featured item, offer, or details first.');
     return '';
   }
 
-  const copy = buildAdCopy(title, text);
+  const copy = buildAdCopy(title, text, options);
   setValue('adGeneratedText', copy);
   return copy;
+}
+
+function applyAdTemplate(template) {
+  const templates = {
+    sale: {
+      title: 'Limited-time Sean\'s Donuts sale',
+      campaign: 'Limited Time Sale',
+      tone: 'Hype',
+      featuredItem: 'donuts and drinks',
+      offer: getActiveSale().active ? `${getActiveSale().percent}% off today` : 'special pricing for a limited time',
+      cta: 'Order before the sale ends',
+      text: 'Fresh favorites are ready and the discount applies automatically at checkout.'
+    },
+    event: {
+      title: 'Sean\'s Donuts event service',
+      campaign: 'Event',
+      tone: 'Professional',
+      featuredItem: 'event orders',
+      offer: 'fast cafe service for your group',
+      cta: 'Reach out to plan your order',
+      text: 'We can help with quick bites, drinks, and simple cafe service for events.'
+    },
+    hiring: {
+      title: 'Sean\'s Donuts is hiring',
+      campaign: 'Hiring',
+      tone: 'Friendly',
+      featuredItem: 'crew roles',
+      offer: 'join the cafe team',
+      cta: 'Apply through the Careers page',
+      text: 'We are looking for reliable people who can communicate clearly and help customers.'
+    },
+    raffle: {
+      title: 'Raffle tickets are available',
+      campaign: 'Raffle',
+      tone: 'Playful',
+      featuredItem: 'raffle tickets',
+      offer: 'ticket sales are open while supplies last',
+      cta: 'Ask for tickets with your order',
+      text: 'Grab raffle tickets with your Sean\'s Donuts order and get entered for the next draw.'
+    }
+  };
+
+  const picked = templates[template];
+  if (!picked) return;
+
+  setValue('adTitle', picked.title);
+  setValue('adCampaignType', picked.campaign);
+  setValue('adTone', picked.tone);
+  setValue('adFeaturedItem', picked.featuredItem);
+  setValue('adOffer', picked.offer);
+  setValue('adCTA', picked.cta);
+  setValue('adText', picked.text);
+  generateAdCopy();
 }
 
 async function copyText(text) {
@@ -1377,7 +1753,8 @@ function copyGeneratedAdCopy() {
 
 async function saveAdNow() {
   const title = getValue('adTitle').trim();
-  const text = getValue('adText').trim();
+  const generated = getValue('adGeneratedText').trim();
+  const text = generated || generateAdCopy() || getValue('adText').trim();
   const status = getValue('adStatus') || 'Active';
 
   if (!title || !text) {
@@ -1395,6 +1772,14 @@ async function saveAdNow() {
 
     setValue('adTitle', '');
     setValue('adText', '');
+    setValue('adAudience', '');
+    setValue('adFeaturedItem', '');
+    setValue('adOffer', '');
+    setValue('adCTA', '');
+    setValue('adGeneratedText', '');
+    setValue('adCampaignType', 'General Promo');
+    setValue('adPlatform', 'All');
+    setValue('adTone', 'Friendly');
     setValue('adStatus', 'Active');
     await loadAds();
   } catch (err) {
@@ -2186,10 +2571,16 @@ function init() {
   $('contactStatusFilter')?.addEventListener('change', loadContactMessages);
   $('contactSearchInput')?.addEventListener('input', debounce(loadContactMessages, 250));
 
+  $('inventoryRefreshBtn')?.addEventListener('click', loadInventory);
+  $('saveInventoryBtn')?.addEventListener('click', saveInventoryNow);
+
   $('loadPayrollBtn')?.addEventListener('click', loadPayroll);
   $('generateAdCopyBtn')?.addEventListener('click', generateAdCopy);
   $('copyAdCopyBtn')?.addEventListener('click', copyGeneratedAdCopy);
   $('saveAdBtn')?.addEventListener('click', saveAdNow);
+  document.querySelectorAll('[data-ad-template]').forEach(btn => {
+    btn.addEventListener('click', () => applyAdTemplate(btn.dataset.adTemplate));
+  });
   $('saveRolePermissionsBtn')?.addEventListener('click', saveRolePermissionsNow);
   $('saveEmployeesBtn')?.addEventListener('click', saveEmployeesNow);
   $('addEmployeeRowBtn')?.addEventListener('click', () => openEmployeeModal(-1));
