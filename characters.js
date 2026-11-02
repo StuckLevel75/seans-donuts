@@ -41,8 +41,16 @@ if (graveyard && living && firebaseConfig.projectId && firebaseConfig.apiKey) {
     const alive = characters.filter(c => c.status === "alive");
     const sortByName = (a,b) => String(a.name || "").localeCompare(String(b.name || ""));
     dead.sort(sortByName); alive.sort(sortByName);
-    if (dead.length) graveyard.replaceChildren(...dead.map(renderCharacter));
-    else graveyard.innerHTML = fallback;
+    // Preserve Sean's original card until he is explicitly managed in Firebase.
+    // Avoid displaying him twice if a matching Firebase record already exists.
+    const seanInDatabase = characters.some(c => String(c.name || "").trim().toLowerCase() === "sean salazar");
+    const staticSean = !seanInDatabase ? (() => {
+      const holder = document.createElement("div");
+      holder.innerHTML = fallback;
+      return holder.firstElementChild;
+    })() : null;
+    const graveyardCards = [...(staticSean ? [staticSean] : []), ...dead.map(renderCharacter)];
+    graveyard.replaceChildren(...graveyardCards);
     if (alive.length) living.replaceChildren(...alive.map(renderCharacter));
     else {
       const empty = document.createElement("p");
