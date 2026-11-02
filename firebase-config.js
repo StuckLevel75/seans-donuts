@@ -1,6 +1,6 @@
 // Firebase web app configuration. These are public client identifiers, not secret credentials.
 export const firebaseConfig = {
-  apiKey: "AIzaSyBW28sxu_GgfchCcQf3zvla0Qk1LJpPzrM",
+  apiKey: "AIzaSyBW28sxu_GgfohCcQf3Zvla0Qk1LJpPzrM",
   authDomain: "stucklevel75.firebaseapp.com",
   projectId: "stucklevel75",
   storageBucket: "stucklevel75.firebasestorage.app",
