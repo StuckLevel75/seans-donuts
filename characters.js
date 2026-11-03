@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { getFirestore, collection, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 const $ = id => document.getElementById(id);
 const graveyard=$("graveyard-list"),living=$("living-characters-list"),updates=$("updates-list"),modal=$("character-modal");
@@ -53,5 +53,12 @@ if(firebaseConfig.projectId&&firebaseConfig.apiKey){
     graveyard.replaceChildren(...dead.map(card));
     living.replaceChildren(...(alive.length?alive.map(card):[element("p","note","No living characters added yet.")]));
   },err=>{console.error("Characters unavailable",err);living.replaceChildren(element("p","note","Characters could not load right now."))});
+  onSnapshot(doc(db,"settings","homepage"),snap=>{
+    const about=snap.exists()?snap.data().about:null;
+    if(typeof about==="string"&&about.trim()){
+      const section=document.querySelector("#about .about");
+      if(section)section.textContent=about.trim();
+    }
+  },err=>console.warn("Homepage settings unavailable",err.code));
   onSnapshot(collection(db,"updates"),snap=>{allUpdates=snap.docs.map(d=>({id:d.id,...d.data()}));drawUpdates()},err=>{console.error("Updates unavailable",err);updates.replaceChildren(element("p","note","Updates could not load. Check that the Firestore rules have been published."))});
 }
