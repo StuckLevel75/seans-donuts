@@ -30,5 +30,7 @@ function applySite(data){
  banner.hidden=!show;
  banner.textContent=show?String(data.bannerText).slice(0,240):"";
 }
-onSnapshot(doc(db,"settings","layout"),snap=>applyLayout(snap.exists()?snap.data():null),err=>console.warn("Layout unavailable",err.code));
+const isPreview=new URLSearchParams(location.search).has("layout-preview");
+if(isPreview){window.addEventListener("message",e=>{if(e.origin!==location.origin||e.data?.type!=="sl75-layout-preview")return;applyLayout({sections:e.data.sections})});}
+else onSnapshot(doc(db,"settings","layout"),snap=>applyLayout(snap.exists()?snap.data():null),err=>console.warn("Layout unavailable",err.code));
 onSnapshot(doc(db,"settings","site"),snap=>applySite(snap.exists()?snap.data():null),err=>console.warn("Site settings unavailable",err.code));
