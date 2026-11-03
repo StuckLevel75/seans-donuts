@@ -30,7 +30,11 @@ function move(from,to){const a=sections.splice(from,1)[0];sections.splice(to,0,a
 function preview(){
  const root=$("builder-preview-list");root.replaceChildren();
  sections.filter(s=>s.visible).forEach(s=>{const row=document.createElement("div");row.className="preview-row";const title=document.createElement("strong");title.textContent=s.title||s.id;const note=document.createElement("div");note.textContent="Section: "+s.id;row.append(title,note);root.append(row)});
- $("builder-preview-area").classList.remove("hidden");$("builder-status").textContent="Preview only — not yet published.";
+ const old=$("builder-live-frame");if(old)old.remove();
+ const frame=document.createElement("iframe");frame.id="builder-live-frame";frame.title="Unpublished homepage preview";frame.style.cssText="width:100%;height:560px;border:1px solid #31543a;border-radius:10px;margin-top:14px;background:#070b08";
+ frame.src="/?layout-preview=1";frame.onload=()=>frame.contentWindow.postMessage({type:"sl75-layout-preview",sections:clean(sections)},location.origin);
+ $("builder-preview-area").append(frame);
+ $("builder-preview-area").classList.remove("hidden");$("builder-status").textContent="Live preview only — not yet published.";
 }
 function normalize(saved){
  const map=new Map((Array.isArray(saved)?saved:[]).filter(s=>s&&typeof s.id==="string").map(s=>[s.id,s]));
