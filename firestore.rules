@@ -1,9 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == "Bm2XwQBXXEePFaaMfLs5K5ck0HB2";
+    }
     match /characters/{characterId} {
       allow read: if true;
-      allow create, update, delete: if request.auth != null && request.auth.uid == "Bm2XwQBXXEePFaaMfLs5K5ck0HB2";
+      allow create, update, delete: if isAdmin();
+    }
+    match /updates/{updateId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow read: if settingId == "homepage";
+      allow create, update, delete: if isAdmin() && settingId == "homepage";
     }
   }
 }
