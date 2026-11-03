@@ -1,7 +1,8 @@
-import {getApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import {getApp,getApps,initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,collection,getDocs,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-const app=getApp(),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
+import {firebaseConfig} from "../firebase-config.js";
+const app=getApps().length?getApp():initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 const DEFAULT=[
  ["about","About Me"],["dashboard","Gaming Hub"],["updates","Latest Updates"],
  ["socials","My Socials"],["streaming","Streaming"],["previews","Content Previews"],
