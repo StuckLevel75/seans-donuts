@@ -7,7 +7,7 @@ const originalTitles=new Map(defaults.map(id=>[id,document.querySelector("sectio
 const main=document.querySelector("main"),hero=main.querySelector(".hero");
 const heroTitle=hero.querySelector("h1"),heroLead=hero.querySelector(".lead");
 const originalHeroTitle=heroTitle.textContent,originalHeroLead=heroLead.textContent;
-function applyHero(v){heroTitle.textContent=v?.heroTitle||originalHeroTitle;heroLead.textContent=v?.heroLead||originalHeroLead;}
+function applyHero(v){if(v?.heroTitle&&v.heroTitle!=="STUCKLEVEL75")heroTitle.textContent=v.heroTitle;else{heroTitle.replaceChildren(document.createTextNode("STUCK"));const span=document.createElement("span");span.textContent="LEVEL75";heroTitle.append(span)}heroLead.textContent=v?.heroLead||originalHeroLead;}
 const banner=document.getElementById("site-banner"),maintenance=document.getElementById("maintenance-screen");
 function applyLayout(data){
  const sections=Array.isArray(data?.sections)?data.sections:[];
