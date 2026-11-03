@@ -5,6 +5,9 @@ const app=initializeApp(firebaseConfig,"public-site-settings"),db=getFirestore(a
 const defaults=["about","dashboard","updates","socials","streaming","previews","coming-soon","gta-rp","living-characters","graveyard"];
 const originalTitles=new Map(defaults.map(id=>[id,document.querySelector("section#"+id+" h2")?.textContent||id]));
 const main=document.querySelector("main"),hero=main.querySelector(".hero");
+const heroTitle=hero.querySelector("h1"),heroLead=hero.querySelector(".lead");
+const originalHeroTitle=heroTitle.textContent,originalHeroLead=heroLead.textContent;
+function applyHero(v){heroTitle.textContent=v?.heroTitle||originalHeroTitle;heroLead.textContent=v?.heroLead||originalHeroLead;}
 const banner=document.getElementById("site-banner"),maintenance=document.getElementById("maintenance-screen");
 function applyLayout(data){
  const sections=Array.isArray(data?.sections)?data.sections:[];
@@ -31,6 +34,8 @@ function applySite(data){
  banner.textContent=show?String(data.bannerText).slice(0,240):"";
 }
 const isPreview=new URLSearchParams(location.search).has("layout-preview");
-if(isPreview){window.addEventListener("message",e=>{if(e.origin!==location.origin||e.data?.type!=="sl75-layout-preview")return;applyLayout({sections:e.data.sections})});}
+if(isPreview){window.addEventListener("message",e=>{if(e.origin!==location.origin||e.data?.type!=="sl75-layout-preview")return;applyLayout({sections:e.data.sections});applyHero(e.data)});}
 else onSnapshot(doc(db,"settings","layout"),snap=>applyLayout(snap.exists()?snap.data():null),err=>console.warn("Layout unavailable",err.code));
 onSnapshot(doc(db,"settings","site"),snap=>applySite(snap.exists()?snap.data():null),err=>console.warn("Site settings unavailable",err.code));
+
+if(!isPreview)onSnapshot(doc(db,"settings","homepage"),snap=>applyHero(snap.exists()?snap.data():null),err=>console.warn("Hero settings unavailable",err.code));
