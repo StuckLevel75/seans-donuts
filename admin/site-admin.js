@@ -32,7 +32,7 @@ function preview(){
  sections.filter(s=>s.visible).forEach(s=>{const row=document.createElement("div");row.className="preview-row";const title=document.createElement("strong");title.textContent=s.title||s.id;const note=document.createElement("div");note.textContent="Section: "+s.id;row.append(title,note);root.append(row)});
  const old=$("builder-live-frame");if(old)old.remove();
  const frame=document.createElement("iframe");frame.id="builder-live-frame";frame.title="Unpublished homepage preview";frame.style.cssText="width:100%;height:560px;border:1px solid #31543a;border-radius:10px;margin-top:14px;background:#070b08";
- frame.src="/?layout-preview=1";frame.onload=()=>frame.contentWindow.postMessage({type:"sl75-layout-preview",sections:clean(sections)},location.origin);
+ frame.src="/?layout-preview=1";frame.onload=()=>frame.contentWindow.postMessage({type:"sl75-layout-preview",sections:clean(sections),heroTitle:$("builder-hero-title").value,heroLead:$("builder-hero-lead").value},location.origin);
  $("builder-preview-area").append(frame);
  $("builder-preview-area").classList.remove("hidden");$("builder-status").textContent="Live preview only — not yet published.";
 }
@@ -42,7 +42,10 @@ function normalize(saved){
 }
 async function loadSettings(){
  try{
-  const [layout,site]=await Promise.all([getDoc(doc(db,"settings","layout")),getDoc(doc(db,"settings","site"))]);
+  const [layout,site,homepage]=await Promise.all([getDoc(doc(db,"settings","layout")),getDoc(doc(db,"settings","site")),getDoc(doc(db,"settings","homepage"))]);
+  const hero=homepage.exists()?homepage.data():{};
+  $("builder-hero-title").value=hero.heroTitle||"STUCKLEVEL75";
+  $("builder-hero-lead").value=hero.heroLead||"Gaming, streaming, and everything I\u0027m working on. Find my socials, check out my content, and explore my GTA RP projects.";
   if(layout.exists()){
    const arr=layout.data().sections;
    const byId=new Map(normalize(arr).map(s=>[s.id,s]));
@@ -65,7 +68,7 @@ $("builder-reset").onclick=()=>{sections=structuredClone(DEFAULT);drawBuilder();
 $("builder-publish").onclick=async()=>{
  if(!ready)return;
  if(!confirm("Publish homepage layout changes?"))return;
- try{await setDoc(doc(db,"settings","layout"),{sections:clean(sections),updatedAt:serverTimestamp()});$("builder-status").textContent="Homepage layout published."; }
+ try{await setDoc(doc(db,"settings","layout"),{sections:clean(sections),updatedAt:serverTimestamp()});await setDoc(doc(db,"settings","homepage"),{heroTitle:$("builder-hero-title").value.trim().slice(0,100),heroLead:$("builder-hero-lead").value.trim().slice(0,350),updatedAt:serverTimestamp()},{merge:true});$("builder-status").textContent="Homepage layout and content published."; }
  catch(e){$("builder-status").textContent="Publish failed: "+e.message}
 };
 $("site-settings").onsubmit=async e=>{
