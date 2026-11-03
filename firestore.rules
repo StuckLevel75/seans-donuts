@@ -43,6 +43,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
       allow update: if request.auth != null && request.auth.uid == memberId
+        && (!exists(/databases/$(database)/documents/memberFlags/$(memberId)) || get(/databases/$(database)/documents/memberFlags/$(memberId)).data.suspended != true)
         && request.auth.token.firebase.sign_in_provider != 'anonymous'
         && request.resource.data.keys().hasOnly(['username','bio','avatarUrl','createdAt','updatedAt'])
         && request.resource.data.username is string
