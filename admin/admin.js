@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getFirestore,collection,addDoc,doc,updateDoc,deleteDoc,onSnapshot,serverTimestamp,writeBatch,setDoc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { getFirestore,collection,addDoc,doc,updateDoc,deleteDoc,onSnapshot,serverTimestamp,writeBatch,setDoc,query,where,getDocs } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { firebaseConfig } from "../firebase-config.js";
 const $=id=>document.getElementById(id),msg=s=>$("message").textContent=s;
 const SEAN={name:"Sean Salazar",role:"Business Owner · Gang Member",status:"dead",description:"Sean Salazar was a business owner and gang member in HighLife RP, best known for owning and operating Sean’s Donuts.",imageUrl:"https://stucklevel75.com/Screenshot%202026-01-22%20034911.png",businesses:"Sean's Donuts",affiliations:"Gang Member",history:""};
@@ -9,6 +9,41 @@ if(!firebaseConfig.apiKey||!firebaseConfig.projectId){$("setup").classList.remov
 else{
   const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
   let characters=[],posts=[],unsubscribe=[];
+  let analyticsRequest=0;
+  async function loadTraffic(){
+    const request=++analyticsRequest;
+    const cutoff=new Date(Date.now()-29*86400000).toISOString().slice(0,10);
+    const today=new Date().toISOString().slice(0,10);
+    const status=$("traffic-status");status.textContent="Loading analytics…";
+    try{
+      const snap=await getDocs(query(collection(db,"trafficVisits"),where("day",">=",cutoff)));
+      if(request!==analyticsRequest)return;
+      const visits=snap.docs.map(d=>d.data()).filter(v=>v.day>=cutoff && (v.page==="home"||v.page==="remington"));
+      const unique=new Set(visits.map(v=>v.uid)).size;
+      const todayUnique=new Set(visits.filter(v=>v.day===today).map(v=>v.uid)).size;
+      const counts={home:0,remington:0},daily={};
+      for(const v of visits){counts[v.page]++;daily[v.day]=(daily[v.day]||0)+1}
+      $("traffic-visitors").textContent=unique.toLocaleString();
+      $("traffic-views").textContent=visits.length.toLocaleString();
+      $("traffic-today").textContent=todayUnique.toLocaleString();
+      $("traffic-top").textContent=visits.length?(counts.home>=counts.remington?"Homepage":"Remington Market"):"—";
+      $("traffic-pages").textContent="Homepage: "+counts.home+" · Remington Market: "+counts.remington;
+      const bars=$("traffic-bars");bars.replaceChildren();
+      const days=Array.from({length:7},(_,i)=>new Date(Date.now()-(6-i)*86400000).toISOString().slice(0,10));
+      const max=Math.max(1,...days.map(d=>daily[d]||0));
+      for(const day of days){
+        const wrapper=document.createElement("div");wrapper.className="traffic-day";
+        const number=document.createElement("span");number.textContent=daily[day]||0;
+        const bar=document.createElement("div");bar.className="traffic-column";bar.style.height=(Math.max(3,(daily[day]||0)/max*90))+"px";
+        const label=document.createElement("span");label.textContent=day.slice(5);
+        wrapper.append(number,bar,label);bars.append(wrapper);
+      }
+      status.textContent="Last refreshed: "+new Date().toLocaleTimeString()+". Counts are approximate; one visit per browser, page and UTC day.";
+    }catch(err){if(request===analyticsRequest)status.textContent="Could not load analytics: "+err.message+" (check Firestore rules)."}
+  }
+  $("analytics-admin").addEventListener("click",()=>{});
+  document.querySelector('a[href="#analytics-admin"]').addEventListener("click",()=>{if(auth.currentUser)loadTraffic()});
+
   const updateCounts=()=>$("overview-counts").textContent=characters.length+" saved characters · "+posts.length+" announcements";
   const resetCharacter=()=>{$("editor").reset();$("character-id").value="";$("form-title").textContent="Add Character"};
   const resetUpdate=()=>{$("update-editor").reset();$("update-id").value="";$("update-form-title").textContent="New Announcement"};
@@ -34,7 +69,7 @@ else{
   onAuthStateChanged(auth,user=>{
     unsubscribe.forEach(fn=>fn());unsubscribe=[];
     $("login").classList.toggle("hidden",!!user);$("dashboard").classList.toggle("hidden",!user);
-    if(!user)return;
+    if(!user){analyticsRequest++;return;} loadTraffic();
     unsubscribe.push(onSnapshot(collection(db,"characters"),snap=>{characters=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));displayCharacters();updateCounts();$("import-sean").disabled=characters.some(c=>(c.name||"").trim().toLowerCase()==="sean salazar")},e=>msg("Cannot load characters: "+e.message)));
     unsubscribe.push(onSnapshot(collection(db,"updates"),snap=>{posts=snap.docs.map(d=>({id:d.id,...d.data()}));displayUpdates();updateCounts()},e=>msg("Cannot load announcements: "+e.message+" — publish the new Firestore rules")));
     unsubscribe.push(onSnapshot(doc(db,"settings","homepage"),snap=>{$("homepage-about").value=snap.exists()?(snap.data().about||DEFAULT_ABOUT):DEFAULT_ABOUT},e=>msg("Cannot load homepage settings: "+e.message+" — publish the new Firestore rules")));
