@@ -80,7 +80,7 @@ else{
   $("cancel").onclick=resetCharacter;$("update-cancel").onclick=resetUpdate;
   $("editor").onsubmit=async e=>{
     e.preventDefault();const id=$("character-id").value,imageUrl=$("image-url").value.trim();
-    if(imageUrl&&!/^https:\/\/[^\s]+$/i.test(imageUrl)){msg("Enter a valid HTTPS image link");return}
+    if(imageUrl&&!/^https:\/\/[^\s]+$/i.test(imageUrl)){msg("Upload a picture or enter a valid HTTPS image URL.");return}
     const data={name:$("name").value.trim(),role:$("role").value.trim(),status:$("status").value,description:$("description").value.trim(),businesses:$("businesses").value.trim(),affiliations:$("affiliations").value.trim(),history:$("history").value.trim(),imageUrl};
     if(!data.name||!data.role||!data.description){msg("Complete required fields");return}
     try{msg("Saving character…");
