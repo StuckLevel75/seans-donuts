@@ -2,6 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase
 import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,sendEmailVerification,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "../firebase-config.js";
+import {isDiscordImage,imageSource} from "../image-links.js";
 const $=id=>document.getElementById(id),app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const status=s=>$("status").textContent=s;
 let pendingName="",current=null,blocked=false;
@@ -31,7 +32,7 @@ onAuthStateChanged(auth,async user=>{
     if(flag.exists()&&flag.data().suspended===true){
       $("profile").classList.add("hidden");status("This account is suspended from member features.");
     }else $("profile").classList.remove("hidden");
-    $("avatar-preview").src=$("avatar").value||"";
+    $("avatar-preview").src=imageSource($("avatar").value);
   }catch(e){status("Could not load profile: "+e.message)}
 });
 $("signup").onsubmit=async e=>{
@@ -48,12 +49,12 @@ $("reset-password").onclick=async()=>{const email=$("email").value.trim();if(!em
 $("profile").onsubmit=async e=>{
   e.preventDefault();if(!current)return;
   const username=$("username").value.trim(),bio=$("bio").value.trim(),avatarUrl=$("avatar").value.trim();
-  if(username.length<2||username.length>32||bio.length>500||avatarUrl.length>500||(avatarUrl&&!/^https:\/\/[^\s]+$/i.test(avatarUrl))){status("Check username, bio, and HTTPS avatar link.");return}
+  if(username.length<2||username.length>32||bio.length>500||avatarUrl.length>500||!isDiscordImage(avatarUrl)){status("Check username, bio, and Discord image link (PNG, JPG, GIF, or WebP).");return}
   try{
     const ref=doc(db,"members",current.uid),existing=await getDoc(ref);
     const data={username,bio,avatarUrl,updatedAt:serverTimestamp()};
     if(!existing.exists())data.createdAt=serverTimestamp();
     await setDoc(ref,data,{merge:true});
-    $("avatar-preview").src=avatarUrl||"";status("Private profile saved.");
+    $("avatar-preview").src=imageSource(avatarUrl);status("Private profile saved.");
   }catch(err){status("Save failed: "+err.message)}
 };
