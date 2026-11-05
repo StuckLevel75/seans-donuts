@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore,collection,addDoc,doc,updateDoc,deleteDoc,onSnapshot,serverTimestamp,writeBatch,setDoc,query,where,getDocs } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { firebaseConfig } from "../firebase-config.js";
+import { attachImage } from "../image-links.js";
 const $=id=>document.getElementById(id),msg=s=>$("message").textContent=s;
 const SEAN={name:"Sean Salazar",role:"Business Owner · Gang Member",status:"dead",description:"Sean Salazar was a business owner and gang member in HighLife RP, best known for owning and operating Sean’s Donuts.",imageUrl:"https://stucklevel75.com/Screenshot%202026-01-22%20034911.png",businesses:"Sean's Donuts",affiliations:"Gang Member",history:""};
 const DEFAULT_ABOUT="Hey, I'm Dakota! I'm a gamer who enjoys GTA RP, streaming, and creating content. I've spent a lot of time playing GTA RP, building businesses, and creating different characters along the way.";
@@ -53,7 +54,7 @@ else{
     for(const c of characters){
       const item=document.createElement("div");item.className="item";const title=document.createElement("strong");
       title.textContent=(c.name||"Unnamed")+" — "+(c.status==="dead"?"Deceased":"Alive");item.append(title);
-      if(c.imageUrl&&/^https:\/\//i.test(c.imageUrl)){const img=document.createElement("img");img.src=c.imageUrl;img.alt=c.name||"Character";item.append(img)}
+      if(c.imageUrl&&/^https:\/\//i.test(c.imageUrl)){const img=document.createElement("img");img.alt=c.name||"Character";if(attachImage(img,c.imageUrl))item.append(img)}
       item.append(makeButton("Edit","secondary",()=>{for(const k of ["name","role","status","description","businesses","affiliations","history"]){$(k).value=c[k]|| (k==="status"?"dead":"")} $("image-url").value=c.imageUrl||"";$("character-id").value=c.id;$("form-title").textContent="Edit Character";$("characters-admin").scrollIntoView({behavior:"smooth"})}),
         makeButton("Delete","danger",async()=>{if(!confirm("Delete "+c.name+"?"))return;try{await deleteDoc(doc(db,"characters",c.id));msg("Character deleted");resetCharacter()}catch(e){msg("Delete failed: "+e.message)}}));root.append(item)
     }
