@@ -2,7 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase
 import {getFirestore,doc,onSnapshot} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 const app=initializeApp(firebaseConfig,"public-site-settings"),db=getFirestore(app);
-const defaults=["about","dashboard","updates","socials","streaming","previews","coming-soon","gta-rp","living-characters","graveyard"];
+const defaults=["about","dashboard","updates","socials","streaming","coming-soon","gta-rp","living-characters","graveyard"];
 const originalTitles=new Map(defaults.map(id=>[id,document.querySelector("section#"+id+" h2")?.textContent||id]));
 const main=document.querySelector("main"),hero=main.querySelector(".hero");
 const heroTitle=hero.querySelector("h1"),heroLead=hero.querySelector(".lead");
