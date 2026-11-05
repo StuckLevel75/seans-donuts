@@ -2,7 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase
 import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,sendEmailVerification,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "../firebase-config.js";
-import {isDiscordImage,imageSource} from "../image-links.js";
+import {uploadImage,imageSource} from "../image-links.js";
 const $=id=>document.getElementById(id),app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const status=s=>$("status").textContent=s;
 let pendingName="",current=null,blocked=false;
@@ -46,10 +46,11 @@ $("signin").onsubmit=async e=>{e.preventDefault();try{await signInWithEmailAndPa
 $("logout").onclick=()=>signOut(auth);
 $("verify").onclick=async()=>{try{await sendEmailVerification(auth.currentUser);status("Verification email sent.")}catch(err){status(err.message)}};
 $("reset-password").onclick=async()=>{const email=$("email").value.trim();if(!email){status("Enter your email in the Sign In form first.");return}try{await sendPasswordResetEmail(auth,email);status("If the address is registered, a reset email will be sent.")}catch(err){status(err.message)}};
+$("avatar-upload").addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;try{status("Uploading avatar…");const url=await uploadImage(file);$("avatar").value=url;$("avatar-preview").src=url;status("Avatar uploaded. Save Profile to apply it.")}catch(err){status(err.message)}finally{e.target.value=""}});
 $("profile").onsubmit=async e=>{
   e.preventDefault();if(!current)return;
   const username=$("username").value.trim(),bio=$("bio").value.trim(),avatarUrl=$("avatar").value.trim();
-  if(username.length<2||username.length>32||bio.length>500||avatarUrl.length>500||!isDiscordImage(avatarUrl)){status("Check username, bio, and Discord image link (PNG, JPG, GIF, or WebP).");return}
+  if(username.length<2||username.length>32||bio.length>500||avatarUrl.length>500||(avatarUrl&&!/^https:\/\/[^\s]+$/i.test(avatarUrl))){status("Check username, bio, and avatar image URL.");return}
   try{
     const ref=doc(db,"members",current.uid),existing=await getDoc(ref);
     const data={username,bio,avatarUrl,updatedAt:serverTimestamp()};
