@@ -11,7 +11,7 @@ function element(tag,cls,value){const e=document.createElement(tag);if(cls)e.cla
 function openProfile(c){
   lastFocus=document.activeElement;
   const root=$("profile-content");root.replaceChildren();
-  if(c.imageUrl && (/^https:\/\//i.test(c.imageUrl)||c.imageUrl.startsWith("/"))){const img=element("img");img.alt=c.name+" screenshot";if(attachImage(img,c.imageUrl))root.append(crop(img,c))}
+  if(c.imageUrl && (/^https:\/\//i.test(c.imageUrl)||c.imageUrl.startsWith("/"))){const img=element("img");img.alt=c.name+" screenshot";if(attachImage(img,c.imageUrl)){const frame=element("div","profile-photo-frame");frame.append(crop(img,c));root.append(frame)}}
   root.append(element("span","status "+(c.status==="dead"?"dead":"living-status"),c.status==="dead"?"Deceased":"Alive"));
   const name=element("h2",null,c.name);name.id="profile-name";root.append(name);
   root.append(element("div","character-role",c.role||""),element("p",null,c.description||""));
