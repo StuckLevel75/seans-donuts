@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import { getFirestore,collection,addDoc,doc,updateDoc,deleteDoc,onSnapshot,serverTimestamp,writeBatch,setDoc,query,where,getDocs } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import { firebaseConfig } from "../firebase-config.js";
-import { attachImage, uploadImage } from "../image-links.js";
+import { attachImage } from "../image-links.js";
 const $=id=>document.getElementById(id),msg=s=>$("message").textContent=s;
 const SEAN={name:"Sean Salazar",role:"Business Owner · Gang Member",status:"dead",description:"Sean Salazar was a business owner and gang member in HighLife RP, best known for owning and operating Sean’s Donuts.",imageUrl:"https://stucklevel75.com/Screenshot%202026-01-22%20034911.png",businesses:"Sean's Donuts",affiliations:"Gang Member",history:""};
 const DEFAULT_ABOUT="Hey, I'm Dakota! I'm a gamer who enjoys GTA RP, streaming, and creating content. I've spent a lot of time playing GTA RP, building businesses, and creating different characters along the way.";
@@ -78,7 +78,6 @@ else{
   $("login").onsubmit=async e=>{e.preventDefault();try{await signInWithEmailAndPassword(auth,$("email").value,$("password").value);$("password").value="";msg("Signed in")}catch(e){msg("Login failed: "+e.message)}};
   $("logout").onclick=()=>signOut(auth);
   $("cancel").onclick=resetCharacter;$("update-cancel").onclick=resetUpdate;
-  $("character-upload").addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;try{msg("Uploading picture…");$("image-url").value=await uploadImage(file);msg("Picture uploaded. Save Character to apply it.")}catch(err){msg(err.message)}finally{e.target.value=""}});
   $("editor").onsubmit=async e=>{
     e.preventDefault();const id=$("character-id").value,imageUrl=$("image-url").value.trim();
     if(imageUrl&&!/^https:\/\/[^\s]+$/i.test(imageUrl)){msg("Upload a picture or enter a valid HTTPS image URL.");return}
