@@ -5,7 +5,7 @@ import {firebaseConfig} from "../firebase-config.js";
 const app=getApps().length?getApp():initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 const DEFAULT=[
  ["about","About Me"],["dashboard","Gaming Hub"],["updates","Latest Updates"],
- ["socials","My Socials"],["streaming","Streaming"],["previews","Content Previews"],
+ ["socials","My Socials"],["streaming","Streaming"],
  ["coming-soon","Coming Soon"],["gta-rp","GTA RP"],["living-characters","Living Characters"],["graveyard","Character Graveyard"]
 ].map(([id,title])=>({id,title,visible:true}));
 let sections=structuredClone(DEFAULT),ready=false;
