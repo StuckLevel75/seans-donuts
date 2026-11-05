@@ -32,7 +32,11 @@ service cloud.firestore {
       allow read: if isAdmin() || (request.auth != null && request.auth.uid == memberId);
       allow create: if request.auth != null && request.auth.uid == memberId
         && request.auth.token.firebase.sign_in_provider != 'anonymous'
-        && request.resource.data.keys().hasOnly(['username','bio','avatarUrl','createdAt','updatedAt'])
+        && request.resource.data.keys().hasOnly(['username','bio','avatarUrl','cropX','cropY','cropZoom','createdAt','updatedAt'])
+        && request.resource.data.get("cropX",50) is number && request.resource.data.get("cropY",50) is number && request.resource.data.get("cropZoom",1) is number
+        && request.resource.data.get("cropX",50) >= 0 && request.resource.data.get("cropX",50) <= 100
+        && request.resource.data.get("cropY",50) >= 0 && request.resource.data.get("cropY",50) <= 100
+        && request.resource.data.get("cropZoom",1) >= 1 && request.resource.data.get("cropZoom",1) <= 2.5
         && request.resource.data.username is string
         && request.resource.data.username.size() >= 2
         && request.resource.data.username.size() <= 32
@@ -45,7 +49,11 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid == memberId
         && (!exists(/databases/$(database)/documents/memberFlags/$(memberId)) || get(/databases/$(database)/documents/memberFlags/$(memberId)).data.suspended != true)
         && request.auth.token.firebase.sign_in_provider != 'anonymous'
-        && request.resource.data.keys().hasOnly(['username','bio','avatarUrl','createdAt','updatedAt'])
+        && request.resource.data.keys().hasOnly(['username','bio','avatarUrl','cropX','cropY','cropZoom','createdAt','updatedAt'])
+        && request.resource.data.get("cropX",50) is number && request.resource.data.get("cropY",50) is number && request.resource.data.get("cropZoom",1) is number
+        && request.resource.data.get("cropX",50) >= 0 && request.resource.data.get("cropX",50) <= 100
+        && request.resource.data.get("cropY",50) >= 0 && request.resource.data.get("cropY",50) <= 100
+        && request.resource.data.get("cropZoom",1) >= 1 && request.resource.data.get("cropZoom",1) <= 2.5
         && request.resource.data.username is string
         && request.resource.data.username.size() >= 2
         && request.resource.data.username.size() <= 32

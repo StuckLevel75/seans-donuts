@@ -3,9 +3,11 @@ import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmai
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "../firebase-config.js";
 import {imageSource} from "../image-links.js";
+import {editor,crop} from "../crop-editor.js";
 const $=id=>document.getElementById(id),app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const status=s=>$("status").textContent=s;
 let pendingName="",current=null,blocked=false;
+const memberCrop=editor("member-crop","avatar");
 async function checkSite(){
   try{const s=await getDoc(doc(db,"settings","site"));blocked=s.exists()&&s.data().registrationEnabled===false}
   catch(e){blocked=true;status("Registration settings unavailable; new registrations paused.")}
@@ -22,17 +24,17 @@ onAuthStateChanged(auth,async user=>{
   try{
     const ref=doc(db,"members",current.uid),snap=await getDoc(ref);
     if(snap.exists()){
-      const p=snap.data();$("username").value=p.username||"";$("bio").value=p.bio||"";$("avatar").value=p.avatarUrl||"";
+      const p=snap.data();$("username").value=p.username||"";$("bio").value=p.bio||"";$("avatar").value=p.avatarUrl||"";memberCrop.load(p);
     }else if(pendingName){
       await setDoc(ref,{username:pendingName,bio:"",avatarUrl:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      $("username").value=pendingName;$("bio").value="";$("avatar").value="";
+      $("username").value=pendingName;$("bio").value="";$("avatar").value="";memberCrop.load({});
       pendingName="";
     }else{status("Profile not created yet. Enter a username and save.")}
     const flag=await getDoc(doc(db,"memberFlags",current.uid));
     if(flag.exists()&&flag.data().suspended===true){
       $("profile").classList.add("hidden");status("This account is suspended from member features.");
     }else $("profile").classList.remove("hidden");
-    $("avatar-preview").src=imageSource($("avatar").value);
+    $("avatar-preview").src=imageSource($("avatar").value);crop($("avatar-preview"),memberCrop.values());
   }catch(e){status("Could not load profile: "+e.message)}
 });
 $("signup").onsubmit=async e=>{
@@ -52,9 +54,9 @@ $("profile").onsubmit=async e=>{
   if(username.length<2||username.length>32||bio.length>500||avatarUrl.length>500||(avatarUrl&&!/^https:\/\/[^\s]+$/i.test(avatarUrl))){status("Check username, bio, and avatar image URL.");return}
   try{
     const ref=doc(db,"members",current.uid),existing=await getDoc(ref);
-    const data={username,bio,avatarUrl,updatedAt:serverTimestamp()};
+    const data={username,bio,avatarUrl,...memberCrop.values(),updatedAt:serverTimestamp()};
     if(!existing.exists())data.createdAt=serverTimestamp();
     await setDoc(ref,data,{merge:true});
-    $("avatar-preview").src=imageSource(avatarUrl);status("Private profile saved.");
+    $("avatar-preview").src=imageSource(avatarUrl);crop($("avatar-preview"),data);status("Private profile saved.");
   }catch(err){status("Save failed: "+err.message)}
 };
