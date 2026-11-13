@@ -11,7 +11,7 @@ function element(tag,cls,value){const e=document.createElement(tag);if(cls)e.cla
 function openProfile(c){
   lastFocus=document.activeElement;
   const root=$("profile-content");root.replaceChildren();
-  if(c.imageUrl && (/^https:\/\//i.test(c.imageUrl)||c.imageUrl.startsWith("/"))){const img=element("img");img.alt=c.name+" screenshot";if(attachImage(img,c.imageUrl)){const frame=element("div","profile-photo-frame");frame.append(crop(img,c));root.append(frame)}}
+  if(c.imageUrl){const img=element("img");img.alt=c.name+" screenshot";if(attachImage(img,c.imageUrl)){const frame=element("div","profile-photo-frame");frame.append(crop(img,c));root.append(frame)}}
   root.append(element("span","status "+(c.status==="dead"?"dead":"living-status"),c.status==="dead"?"Deceased":"Alive"));
   const name=element("h2",null,c.name);name.id="profile-name";root.append(name);
   root.append(element("div","character-role",c.role||""),element("p",null,c.description||""));
@@ -26,7 +26,7 @@ modal?.addEventListener("click",e=>{if(e.target===modal)closeProfile()});
 document.addEventListener("keydown",e=>{if(!modal||modal.hidden)return;if(e.key==="Escape")closeProfile();if(e.key==="Tab"){const controls=[...modal.querySelectorAll("button,a,input,[tabindex]:not([tabindex='-1'])")].filter(el=>!el.disabled);if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
 function card(c){
   const a=element("article","character-card");a.dataset.profile="true";a.tabIndex=0;a.setAttribute("role","button");a.setAttribute("aria-label","View "+c.name+" profile");
-  if(c.imageUrl&&(/^https:\/\//i.test(c.imageUrl)||c.imageUrl.startsWith("/"))){const img=element("img","character-photo");img.alt=c.name+" screenshot";img.loading="lazy";if(attachImage(img,c.imageUrl)){const frame=element("div","character-photo-frame");frame.append(crop(img,c));a.append(frame)}}
+  if(c.imageUrl){const img=element("img","character-photo");img.alt=c.name+" screenshot";img.loading="lazy";if(attachImage(img,c.imageUrl)){const frame=element("div","character-photo-frame");frame.append(crop(img,c));a.append(frame)}}
   const d=element("div","character-details");d.append(element("span","status "+(c.status==="dead"?"dead":"living-status"),c.status==="dead"?"Deceased":"Alive"),element("h3",null,c.name||"Unnamed Character"),element("div","character-role",c.role||""),element("p",null,c.description||""));a.append(d);
   a.addEventListener("click",()=>openProfile(c));a.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openProfile(c)}});return a
 }
