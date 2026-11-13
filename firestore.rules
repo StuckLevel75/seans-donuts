@@ -7,7 +7,8 @@ service cloud.firestore {
     match /applications/{applicationId} {
       allow read, update, delete: if isAdmin();
       allow create: if request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && applicationId == request.resource.data.businessId + '_' + request.auth.uid
         && request.resource.data.keys().hasOnly(['businessId','applicantUid','name','contact','experience','reason','availability','status','createdAt'])
         && request.resource.data.businessId is string
         && request.resource.data.businessId.size() <= 100
