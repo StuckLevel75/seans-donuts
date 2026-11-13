@@ -3,6 +3,7 @@ export function imageSource(value){
  if(typeof value!=="string")return "";
  const raw=value.trim();
  if(raw.startsWith("/")&&!raw.startsWith("//"))return raw;
+ if(/^(?![a-z][a-z0-9+.-]*:)(?!\/\/)[^?#]+\.(png|jpe?g|gif|webp|avif)(?:[?#].*)?$/i.test(raw))return "/"+raw.split("/").map(encodeURIComponent).join("/");
  try{const url=new URL(raw);return url.protocol==="https:"?raw:""}catch{return ""}
 }
 export function attachImage(img,original){
