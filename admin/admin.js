@@ -56,8 +56,9 @@ else{
     for(const c of characters){
       const item=document.createElement("div");item.className="item";const title=document.createElement("strong");
       title.textContent=(c.name||"Unnamed")+" — "+(c.status==="dead"?"Deceased":"Alive");item.append(title);
-      if(c.imageUrl&&/^https:\/\//i.test(c.imageUrl)){const img=document.createElement("img");img.alt=c.name||"Character";if(attachImage(img,c.imageUrl))item.append(crop(img,c))}
-      item.append(makeButton("Edit","secondary",()=>{for(const k of ["name","role","status","description","businesses","affiliations","history"]){$(k).value=c[k]|| (k==="status"?"dead":"")} $("image-url").value=c.imageUrl||"";characterCrop.load(c);$("character-id").value=c.id;$("form-title").textContent="Edit Character";$("characters-admin").scrollIntoView({behavior:"smooth"})}),
+      if(c.imageUrl&&/^https:\/\//i.test(c.imageUrl)){const img=document.createElement("img");img.alt=c.name||"Character";if(attachImage(img,c.imageUrl)){img.className="character-admin-photo";item.append(img)}}
+      const actions=document.createElement("div");actions.className="character-actions";item.append(actions);
+      actions.append(makeButton("Edit","secondary",()=>{for(const k of ["name","role","status","description","businesses","affiliations","history"]){$(k).value=c[k]|| (k==="status"?"dead":"")} $("image-url").value=c.imageUrl||"";characterCrop.load(c);$("character-id").value=c.id;$("form-title").textContent="Edit Character";$("characters-admin").scrollIntoView({behavior:"smooth"})}),
         makeButton("Delete","danger",async()=>{if(!confirm("Delete "+c.name+"?"))return;try{await deleteDoc(doc(db,"characters",c.id));msg("Character deleted");resetCharacter()}catch(e){msg("Delete failed: "+e.message)}}));root.append(item)
     }
   };
