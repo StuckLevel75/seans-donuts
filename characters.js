@@ -21,9 +21,9 @@ function openProfile(c){
   modal.hidden=false;document.body.style.overflow="hidden";$("profile-close").focus();
 }
 function closeProfile(){modal.hidden=true;document.body.style.overflow="";lastFocus?.focus()}
-$("profile-close").addEventListener("click",closeProfile);
-modal.addEventListener("click",e=>{if(e.target===modal)closeProfile()});
-document.addEventListener("keydown",e=>{if(modal.hidden)return;if(e.key==="Escape")closeProfile();if(e.key==="Tab"){const controls=[...modal.querySelectorAll("button,a,input,[tabindex]:not([tabindex='-1'])")].filter(el=>!el.disabled);if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
+$("profile-close")?.addEventListener("click",closeProfile);
+modal?.addEventListener("click",e=>{if(e.target===modal)closeProfile()});
+document.addEventListener("keydown",e=>{if(!modal||modal.hidden)return;if(e.key==="Escape")closeProfile();if(e.key==="Tab"){const controls=[...modal.querySelectorAll("button,a,input,[tabindex]:not([tabindex='-1'])")].filter(el=>!el.disabled);if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
 function card(c){
   const a=element("article","character-card");a.dataset.profile="true";a.tabIndex=0;a.setAttribute("role","button");a.setAttribute("aria-label","View "+c.name+" profile");
   if(c.imageUrl&&(/^https:\/\//i.test(c.imageUrl)||c.imageUrl.startsWith("/"))){const img=element("img","character-photo");img.alt=c.name+" screenshot";img.loading="lazy";if(attachImage(img,c.imageUrl)){const frame=element("div","character-photo-frame");frame.append(crop(img,c));a.append(frame)}}
@@ -31,6 +31,7 @@ function card(c){
   a.addEventListener("click",()=>openProfile(c));a.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openProfile(c)}});return a
 }
 function drawUpdates(){
+  if(!updates)return;
   updates.replaceChildren();
   const sorted=[...allUpdates].sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
   const shown=showAll?sorted:sorted.slice(0,3);
@@ -41,9 +42,9 @@ function drawUpdates(){
     const date=u.createdAt?.toDate?.();a.append(element("div","update-meta",(u.category||"General")+(date?" · "+date.toLocaleDateString():"")));
     a.append(element("h3",null,u.title||"Update"),element("p",null,u.body||""));updates.append(a)
   }
-  $("updates-more").hidden=sorted.length<=3;$("updates-more").textContent=showAll?"Show fewer updates":"Show older updates";
+  if($("updates-more")){$("updates-more").hidden=sorted.length<=3;$("updates-more").textContent=showAll?"Show fewer updates":"Show older updates"}
 }
-$("updates-more").addEventListener("click",()=>{showAll=!showAll;drawUpdates()});
+$("updates-more")?.addEventListener("click",()=>{showAll=!showAll;drawUpdates()});
 if(firebaseConfig.projectId&&firebaseConfig.apiKey){
   const db=getFirestore(initializeApp(firebaseConfig));
   onSnapshot(collection(db,"characters"),snap=>{
@@ -52,9 +53,9 @@ if(firebaseConfig.projectId&&firebaseConfig.apiKey){
     const dead=[...(!seanExists?[sean]:[]),...records.filter(c=>c.status==="dead")];
     const alive=records.filter(c=>c.status==="alive");
     dead.sort((a,b)=>(a.name||"").localeCompare(b.name||""));alive.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-    graveyard.replaceChildren(...dead.map(card));
-    living.replaceChildren(...(alive.length?alive.map(card):[element("p","note","No living characters added yet.")]));
-  },err=>{console.error("Characters unavailable",err);living.replaceChildren(element("p","note","Characters could not load right now."))});
+    if(graveyard)graveyard.replaceChildren(...dead.map(card));
+    if(living)living.replaceChildren(...(alive.length?alive.map(card):[element("p","note","No living characters added yet.")]));
+  },err=>{console.error("Characters unavailable",err);living?.replaceChildren(element("p","note","Characters could not load right now."))});
   onSnapshot(doc(db,"settings","homepage"),snap=>{
     const about=snap.exists()?snap.data().about:null;
     if(typeof about==="string"&&about.trim()){
@@ -62,5 +63,5 @@ if(firebaseConfig.projectId&&firebaseConfig.apiKey){
       if(section)section.textContent=about.trim();
     }
   },err=>console.warn("Homepage settings unavailable",err.code));
-  onSnapshot(collection(db,"updates"),snap=>{allUpdates=snap.docs.map(d=>({id:d.id,...d.data()}));drawUpdates()},err=>{console.error("Updates unavailable",err);updates.replaceChildren(element("p","note","Updates could not load. Check that the Firestore rules have been published."))});
+  onSnapshot(collection(db,"updates"),snap=>{allUpdates=snap.docs.map(d=>({id:d.id,...d.data()}));drawUpdates()},err=>{console.error("Updates unavailable",err);updates?.replaceChildren(element("p","note","Updates could not load. Check that the Firestore rules have been published."))});
 }
