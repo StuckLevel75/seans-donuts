@@ -2,7 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase
 import {getFirestore,doc,onSnapshot} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 const app=initializeApp(firebaseConfig,"public-site-settings"),db=getFirestore(app);
-const defaults=["about","dashboard","updates","socials","streaming","coming-soon","gta-rp","living-characters","graveyard"];
+const defaults=["about","gta-rp","characters","living-characters","graveyard","businesses","updates","socials","streaming"];
 const originalTitles=new Map(defaults.map(id=>[id,document.querySelector("section#"+id+" h2")?.textContent||id]));
 const main=document.querySelector("main"),hero=main.querySelector(".hero");
 const heroTitle=hero.querySelector("h1"),heroLead=hero.querySelector(".lead");
@@ -16,7 +16,7 @@ function applyLayout(data){
  for(const id of defaults){
   const section=document.getElementById(id),config=map.get(id);
   if(!section)continue;
-  section.hidden=config?.visible===false;
+  section.hidden=(id==="graveyard" ? true : id==="living-characters" ? false : config?.visible===false);
   const title=section.querySelector("h2");
   if(title)title.textContent=typeof config?.title==="string"&&config.title.trim()?config.title.slice(0,70):originalTitles.get(id);
  }
