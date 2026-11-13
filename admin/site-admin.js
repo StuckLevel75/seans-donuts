@@ -3,11 +3,7 @@ import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/11.
 import {getFirestore,doc,getDoc,setDoc,collection,getDocs,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "../firebase-config.js";
 const app=getApps().length?getApp():initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
-const DEFAULT=[
- ["about","About Me"],["dashboard","Gaming Hub"],["updates","Latest Updates"],
- ["socials","My Socials"],["streaming","Streaming"],
- ["coming-soon","Coming Soon"],["gta-rp","GTA RP"],["living-characters","Living Characters"],["graveyard","Character Graveyard"]
-].map(([id,title])=>({id,title,visible:true}));
+const DEFAULT=[["about","About Me"],["gta-rp","GTA RP"],["characters","Characters"],["living-characters","Active Characters"],["graveyard","Graveyard"],["businesses","Businesses"],["updates","Latest Updates"],["socials","Socials"],["streaming","Streaming"]].map(([id,title])=>({id,title,visible:true}));
 let sections=structuredClone(DEFAULT),ready=false;
 const clean=s=>s.map(x=>({id:x.id,title:x.title.slice(0,70),visible:!!x.visible}));
 function drawBuilder(){
