@@ -12,15 +12,20 @@ const banner=document.getElementById("site-banner"),maintenance=document.getElem
 function applyLayout(data){
  const sections=Array.isArray(data?.sections)?data.sections:[];
  const map=new Map(sections.filter(s=>s&&defaults.includes(s.id)).map(s=>[s.id,s]));
+ const groups=[["characters","living-characters","graveyard"],["about"],["gta-rp"],["businesses"],["updates"],["socials"],["streaming"]];
  const order=[...sections.map(s=>s.id).filter(id=>defaults.includes(id)),...defaults.filter(id=>!sections.some(s=>s.id===id))];
  for(const id of defaults){
   const section=document.getElementById(id),config=map.get(id);
   if(!section)continue;
-  section.hidden=(id==="graveyard" ? true : id==="living-characters" ? false : config?.visible===false);
+  if(id==="graveyard"||id==="living-characters"){
+   section.dataset.layoutVisible=String(config?.visible!==false);
+  }else section.hidden=config?.visible===false;
   const title=section.querySelector("h2");
   if(title)title.textContent=typeof config?.title==="string"&&config.title.trim()?config.title.slice(0,70):originalTitles.get(id);
  }
- for(const id of order){const section=document.getElementById(id);if(section)main.append(section)}
+ const orderedGroups=groups.slice().sort((a,b)=>Math.min(...a.map(id=>order.indexOf(id)))-Math.min(...b.map(id=>order.indexOf(id))));
+ for(const group of orderedGroups)for(const id of group){const section=document.getElementById(id);if(section)main.append(section)}
+ window.dispatchEvent(new Event("sl75-layout-updated"));
 }
 function applySite(data){
  const maintenanceOn=data?.maintenance===true;
