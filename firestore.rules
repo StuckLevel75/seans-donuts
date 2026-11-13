@@ -8,7 +8,7 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
       allow create: if request.auth != null
         && applicationId == request.resource.data.businessId + '_' + request.auth.uid
-        && request.resource.data.keys().hasOnly(['businessId','applicantUid','name','contact','experience','reason','availability','status','createdAt'])
+        && request.resource.data.keys().hasOnly(['businessId','applicantUid','name','contact','experience','reason','availability','extraAnswers','status','createdAt'])
         && request.resource.data.businessId is string
         && request.resource.data.businessId.size() <= 100
         && request.resource.data.applicantUid == request.auth.uid
@@ -22,6 +22,9 @@ service cloud.firestore {
         && request.resource.data.reason.size() >= 10 && request.resource.data.reason.size() <= 1200
         && request.resource.data.availability is string
         && request.resource.data.availability.size() <= 500
+        && request.resource.data.extraAnswers is list
+        && request.resource.data.extraAnswers.size() <= 8
+        && request.resource.data.extraAnswers.toSet().size() <= 8
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time
         && exists(/databases/$(database)/documents/businesses/$(request.resource.data.businessId))
