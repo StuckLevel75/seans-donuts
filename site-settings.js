@@ -2,7 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase
 import {getFirestore,doc,onSnapshot} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 const app=initializeApp(firebaseConfig,"public-site-settings"),db=getFirestore(app);
-const defaults=["about","gta-rp","characters","living-characters","graveyard","businesses","updates","socials","streaming"];
+const defaults=["about","gta-rp","businesses","updates","socials","streaming"];
 const originalTitles=new Map(defaults.map(id=>[id,document.querySelector("section#"+id+" h2")?.textContent||id]));
 const main=document.querySelector("main"),hero=main.querySelector(".hero");
 const heroTitle=hero.querySelector("h1"),heroLead=hero.querySelector(".lead");
@@ -12,7 +12,7 @@ const banner=document.getElementById("site-banner"),maintenance=document.getElem
 function applyLayout(data){
  const sections=Array.isArray(data?.sections)?data.sections:[];
  const map=new Map(sections.filter(s=>s&&defaults.includes(s.id)).map(s=>[s.id,s]));
- const groups=[["characters","living-characters","graveyard"],["about"],["gta-rp"],["businesses"],["updates"],["socials"],["streaming"]];
+ const groups=[["about"],["gta-rp"],["businesses"],["updates"],["socials"],["streaming"]];
  const order=[...sections.map(s=>s.id).filter(id=>defaults.includes(id)),...defaults.filter(id=>!sections.some(s=>s.id===id))];
  for(const id of defaults){
   const section=document.getElementById(id),config=map.get(id);
