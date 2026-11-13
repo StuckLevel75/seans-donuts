@@ -24,7 +24,6 @@ service cloud.firestore {
         && request.resource.data.availability.size() <= 500
         && request.resource.data.extraAnswers is list
         && request.resource.data.extraAnswers.size() <= 8
-        && request.resource.data.extraAnswers.toSet().size() <= 8
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time
         && exists(/databases/$(database)/documents/businesses/$(request.resource.data.businessId))
